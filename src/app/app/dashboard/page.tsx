@@ -48,9 +48,23 @@ export default function DashboardPage() {
               return (
                 <div key={item.id} className="px-4 py-4 flex flex-col gap-1">
                   <p className="text-xl font-medium text-slate-900">
-                    {item.type === "assignment_created" ? "Added: " : ""}{item.title} ({item.courseName})
+                    {item.title} ({item.courseName})
                   </p>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <span
+                      className={`px-3 py-1 text-xs rounded-md ${item.type === "assignment_created"
+                        ? "bg-blue-100 text-blue-700"
+                        : item.type === "assignment_completed"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-200 text-gray-700"
+                        }`}
+                    >
+                      {item.type === "assignment_created"
+                        ? "➕ Added"
+                        : item.type === "assignment_completed"
+                          ? "✅ Marked Completed"
+                          : "↩️ Marked Incomplete"}
+                    </span>
                     <span className="px-3 py-1 text-xs rounded-md bg-gray-100 text-gray-700">
                       Created {formattedDate}
                     </span>

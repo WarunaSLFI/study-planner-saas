@@ -23,7 +23,7 @@ export type AddAssignmentInput = {
 
 export type ActivityItem = {
   id: string;
-  type: "assignment_created" | "assignment_updated";
+  type: "assignment_created" | "assignment_completed" | "assignment_uncompleted";
   title: string;
   courseName: string;
   createdAt: string;
@@ -218,14 +218,12 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
     if (updatedAssignment) {
       setActivity((previousActivity) => {
         const now = new Date().toISOString();
-        const actionText = updatedAssignment!.isCompleted ? "Marked Completed" : "Marked Incomplete";
+        const actionType = updatedAssignment!.isCompleted ? "assignment_completed" : "assignment_uncompleted";
 
         const newActivity: ActivityItem = {
           id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          type: "assignment_updated",
-          // The UI design requires a specific text format in Dashboard,
-          // so we'll prepend this action text to the title for the activity feed
-          title: `${actionText}: ${updatedAssignment!.title}`,
+          type: actionType,
+          title: updatedAssignment!.title,
           courseName: updatedAssignment!.course,
           createdAt: now,
           dueDate: updatedAssignment!.dueDate,

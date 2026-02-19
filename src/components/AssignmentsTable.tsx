@@ -40,14 +40,13 @@ export default function AssignmentsTable({ assignments, onEdit, onToggleCompleti
                 Due Date
               </th>
               <th className="px-3 py-3 text-lg font-semibold text-slate-600">Status</th>
-              <th className="px-3 py-3 text-lg font-semibold text-slate-600">Score</th>
               <th className="px-3 py-3 text-lg font-semibold text-slate-600">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {assignments.length === 0 ? (
               <tr>
-                <td className="px-3 py-8 text-lg text-slate-500" colSpan={6}>
+                <td className="px-3 py-8 text-lg text-slate-500" colSpan={5}>
                   No assignments match the current filters.
                 </td>
               </tr>
@@ -70,7 +69,6 @@ export default function AssignmentsTable({ assignments, onEdit, onToggleCompleti
                       {getAssignmentStatus(assignment.dueDate, assignment.isCompleted)}
                     </span>
                   </td>
-                  <td className="px-3 py-4 text-lg text-slate-700">{assignment.score}</td>
                   <td className="px-3 py-4 text-lg">
                     <div className="flex items-center gap-2">
                       <Link
@@ -90,8 +88,8 @@ export default function AssignmentsTable({ assignments, onEdit, onToggleCompleti
                         type="button"
                         onClick={() => onToggleCompletion?.(assignment.id)}
                         className={`rounded-md px-3 py-1 text-sm font-medium transition ${assignment.isCompleted
-                            ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                            : "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100"
+                          ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          : "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100"
                           }`}
                       >
                         {assignment.isCompleted ? "Undo" : "Mark Complete"}

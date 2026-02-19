@@ -82,11 +82,6 @@ export default function AssignmentDetailPage() {
               {getAssignmentStatus(assignment.dueDate, assignment.isCompleted)}
             </span>
           </div>
-
-          <div>
-            <p className="text-lg font-medium text-slate-600">Score</p>
-            <p className="mt-1 text-lg text-slate-900">{assignment.score}</p>
-          </div>
         </div>
 
         <div className="mt-6 border-t border-slate-200 pt-6">
