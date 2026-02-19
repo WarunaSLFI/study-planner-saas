@@ -45,6 +45,30 @@ export default function TasksPage() {
     });
   }, [assignments, searchQuery, statusFilter]);
 
+  const sortedAssignments = useMemo(() => {
+    const priorityMap: Record<AssignmentStatus, number> = {
+      Overdue: 0,
+      "Due Soon": 1,
+      Upcoming: 2,
+      Completed: 3,
+    };
+
+    return [...filteredAssignments].sort((a, b) => {
+      const statusA = getAssignmentStatus(a.dueDate, a.isCompleted);
+      const statusB = getAssignmentStatus(b.dueDate, b.isCompleted);
+
+      const priorityA = priorityMap[statusA];
+      const priorityB = priorityMap[statusB];
+
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+
+      // If priorities match (e.g., both Upcoming), sort by due date ascending
+      return a.dueDate.localeCompare(b.dueDate);
+    });
+  }, [filteredAssignments]);
+
   const handleAddAssignment = (assignment: NewAssignment) => {
     addAssignment(assignment);
   };
@@ -93,6 +117,7 @@ export default function TasksPage() {
             >
               <option value="All">All</option>
               <option value="Upcoming">Upcoming</option>
+              <option value="Due Soon">Due Soon</option>
               <option value="Overdue">Overdue</option>
               <option value="Completed">Completed</option>
             </select>
@@ -100,7 +125,7 @@ export default function TasksPage() {
         </div>
       </section>
 
-      <AssignmentsTable assignments={filteredAssignments} onEdit={handleEditClick} onToggleCompletion={(id) => toggleAssignmentCompletion(id)} />
+      <AssignmentsTable assignments={sortedAssignments} onEdit={handleEditClick} onToggleCompletion={(id) => toggleAssignmentCompletion(id)} />
 
       <AssignmentModal
         isOpen={isModalOpen}

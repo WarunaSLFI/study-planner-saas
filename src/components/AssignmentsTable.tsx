@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export type AssignmentStatus = "Upcoming" | "Overdue" | "Completed";
+export type AssignmentStatus = "Upcoming" | "Due Soon" | "Overdue" | "Completed";
 
 export type AssignmentItem = {
   id: string;
@@ -21,6 +21,7 @@ type AssignmentsTableProps = {
 
 export const statusBadgeStyles: Record<AssignmentStatus, string> = {
   Upcoming: "bg-blue-50 text-blue-700 ring-blue-200",
+  "Due Soon": "bg-yellow-100 text-yellow-700 ring-yellow-200",
   Overdue: "bg-rose-50 text-rose-700 ring-rose-200",
   Completed: "bg-emerald-50 text-emerald-700 ring-emerald-200",
 };

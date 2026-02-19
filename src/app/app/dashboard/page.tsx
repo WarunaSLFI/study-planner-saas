@@ -9,19 +9,18 @@ export default function DashboardPage() {
   const { assignments, activity } = useAppData();
 
   const dashboardStats = useMemo(() => {
-    const upcoming = assignments.filter((a) => getAssignmentStatus(a.dueDate, a.isCompleted) === "Upcoming").length;
+    const upcoming = assignments.filter((a) => {
+      const stat = getAssignmentStatus(a.dueDate, a.isCompleted);
+      return stat === "Upcoming" || stat === "Due Soon";
+    }).length;
     const overdue = assignments.filter((a) => getAssignmentStatus(a.dueDate, a.isCompleted) === "Overdue").length;
     const completed = assignments.filter((a) => getAssignmentStatus(a.dueDate, a.isCompleted) === "Completed").length;
 
-    // Simplistic average score calculation for demonstration
-    // In a real app we'd parse the score properly. Let's just hardcode 82% 
-    // or calculate an average if possible. For now hardcode.
-    // Actually, maybe we can just compute it if we want, or leave it at 82%.
     return [
       { title: "Upcoming", value: upcoming.toString() },
       { title: "Overdue", value: overdue.toString() },
       { title: "Completed", value: completed.toString() },
-      { title: "Average Score", value: "82%" },
+      { title: "Total Assignments", value: assignments.length.toString() },
     ];
   }, [assignments]);
   return (
@@ -71,9 +70,11 @@ export default function DashboardPage() {
                     <span
                       className={`px-3 py-1 text-xs rounded-md ${item.status === "Overdue"
                         ? "bg-red-100 text-red-700"
-                        : item.status === "Completed"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-blue-100 text-blue-700"
+                        : item.status === "Due Soon"
+                          ? "bg-yellow-100 text-yellow-700"
+                          : item.status === "Completed"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-blue-100 text-blue-700"
                         }`}
                     >
                       Due {item.dueDate}

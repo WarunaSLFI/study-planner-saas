@@ -1,4 +1,4 @@
-export type AssignmentComputedStatus = "Upcoming" | "Overdue" | "Completed";
+export type AssignmentComputedStatus = "Upcoming" | "Overdue" | "Completed" | "Due Soon";
 
 export function getAssignmentStatus(
     dueDate: string,
@@ -19,6 +19,13 @@ export function getAssignmentStatus(
 
     if (due < today) {
         return "Overdue";
+    }
+
+    const threeDaysFromNow = new Date(today);
+    threeDaysFromNow.setDate(today.getDate() + 3);
+
+    if (due <= threeDaysFromNow) {
+        return "Due Soon";
     }
 
     return "Upcoming";
