@@ -4,7 +4,6 @@ import {
   createContext,
   type ReactNode,
   useContext,
-  useMemo,
   useState,
 } from "react";
 import type { AssignmentItem, AssignmentStatus } from "@/components/AssignmentsTable";
@@ -18,15 +17,28 @@ export type AddAssignmentInput = {
   title: string;
   courseId: string;
   dueDate: string;
-  status: AssignmentStatus;
+  isCompleted: boolean;
   score: string;
+};
+
+export type ActivityItem = {
+  id: string;
+  type: "assignment_created" | "assignment_updated";
+  title: string;
+  courseName: string;
+  createdAt: string;
+  dueDate: string;
+  status: AssignmentStatus;
 };
 
 type AppDataContextValue = {
   courses: CourseItem[];
   assignments: AssignmentItem[];
+  activity: ActivityItem[];
   addCourse: (name: string) => void;
   addAssignment: (assignmentData: AddAssignmentInput) => void;
+  updateAssignment: (id: string, updatedData: Partial<AssignmentItem>) => void;
+  toggleAssignmentCompletion: (id: string) => void;
 };
 
 const initialCourses: CourseItem[] = [
@@ -42,8 +54,9 @@ const initialAssignments: AssignmentItem[] = [
     courseId: "course-operating-systems",
     course: "Operating Systems",
     dueDate: "2026-02-25",
-    status: "Completed",
+    isCompleted: true,
     score: "9/10",
+    createdAt: "2026-02-15T10:00:00.000Z",
   },
   {
     id: "assignment-2",
@@ -51,8 +64,9 @@ const initialAssignments: AssignmentItem[] = [
     courseId: "course-datapipelines",
     course: "Datapipelines",
     dueDate: "2026-03-10",
-    status: "Upcoming",
+    isCompleted: false,
     score: "24/30",
+    createdAt: "2026-02-18T14:30:00.000Z",
   },
   {
     id: "assignment-3",
@@ -60,9 +74,42 @@ const initialAssignments: AssignmentItem[] = [
     courseId: "course-finnish-society",
     course: "Finnish Society",
     dueDate: "2026-02-20",
-    status: "Overdue",
+    isCompleted: false,
     score: "8/10",
+    createdAt: "2026-02-10T09:15:00.000Z",
   },
+];
+
+import { getAssignmentStatus } from "@/lib/assignmentStatus";
+
+const initialActivity: ActivityItem[] = [
+  {
+    id: "activity-1",
+    type: "assignment_created",
+    title: "Datapipelines Project",
+    courseName: "Datapipelines",
+    createdAt: "2026-02-18T14:30:00.000Z",
+    dueDate: "2026-03-10",
+    status: "Upcoming",
+  },
+  {
+    id: "activity-2",
+    type: "assignment_created",
+    title: "Operating Systems Exercise 4",
+    courseName: "Operating Systems",
+    createdAt: "2026-02-15T10:00:00.000Z",
+    dueDate: "2026-02-25",
+    status: "Completed",
+  },
+  {
+    id: "activity-3",
+    type: "assignment_created",
+    title: "Finnish Society Quiz",
+    courseName: "Finnish Society",
+    createdAt: "2026-02-10T09:15:00.000Z",
+    dueDate: "2026-02-20",
+    status: "Overdue",
+  }
 ];
 
 const AppDataContext = createContext<AppDataContextValue | undefined>(undefined);
@@ -85,6 +132,7 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
   const [courses, setCourses] = useState<CourseItem[]>(initialCourses);
   const [assignments, setAssignments] =
     useState<AssignmentItem[]>(initialAssignments);
+  const [activity, setActivity] = useState<ActivityItem[]>(initialActivity);
 
   const addCourse = (name: string) => {
     const trimmedName = name.trim();
@@ -102,30 +150,101 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
     const relatedCourse = courses.find(
       (course) => course.id === assignmentData.courseId,
     );
+    const courseName = relatedCourse?.name ?? "Unknown Course";
+    const now = new Date().toISOString();
 
     setAssignments((previousAssignments) => [
       {
         id: `assignment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         title: assignmentData.title.trim(),
         courseId: assignmentData.courseId,
-        course: relatedCourse?.name ?? "Unknown Course",
+        course: courseName,
         dueDate: assignmentData.dueDate,
-        status: assignmentData.status,
+        isCompleted: assignmentData.isCompleted,
         score: assignmentData.score,
+        createdAt: now,
       },
       ...previousAssignments,
     ]);
+
+    setActivity((previousActivity) => {
+      const newActivity: ActivityItem = {
+        id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        type: "assignment_created",
+        title: assignmentData.title.trim(),
+        courseName,
+        createdAt: now,
+        dueDate: assignmentData.dueDate,
+        status: getAssignmentStatus(assignmentData.dueDate, assignmentData.isCompleted),
+      };
+      return [newActivity, ...previousActivity].slice(0, 8);
+    });
   };
 
-  const value = useMemo<AppDataContextValue>(
-    () => ({
-      courses,
-      assignments,
-      addCourse,
-      addAssignment,
-    }),
-    [courses, assignments],
-  );
+  const updateAssignment = (id: string, updatedData: Partial<AssignmentItem>) => {
+    setAssignments((previousAssignments) =>
+      previousAssignments.map((assignment) =>
+        assignment.id === id
+          ? {
+            ...assignment,
+            ...updatedData,
+            // Update course name if courseId changes
+            course:
+              updatedData.courseId && updatedData.courseId !== assignment.courseId
+                ? courses.find((c) => c.id === updatedData.courseId)?.name ?? "Unknown Course"
+                : updatedData.course ?? assignment.course,
+          }
+          : assignment,
+      ),
+    );
+  };
+
+  const toggleAssignmentCompletion = (id: string) => {
+    let updatedAssignment: AssignmentItem | undefined;
+
+    setAssignments((previousAssignments) =>
+      previousAssignments.map((assignment) => {
+        if (assignment.id === id) {
+          updatedAssignment = {
+            ...assignment,
+            isCompleted: !assignment.isCompleted,
+          };
+          return updatedAssignment;
+        }
+        return assignment;
+      }),
+    );
+
+    if (updatedAssignment) {
+      setActivity((previousActivity) => {
+        const now = new Date().toISOString();
+        const actionText = updatedAssignment!.isCompleted ? "Marked Completed" : "Marked Incomplete";
+
+        const newActivity: ActivityItem = {
+          id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          type: "assignment_updated",
+          // The UI design requires a specific text format in Dashboard,
+          // so we'll prepend this action text to the title for the activity feed
+          title: `${actionText}: ${updatedAssignment!.title}`,
+          courseName: updatedAssignment!.course,
+          createdAt: now,
+          dueDate: updatedAssignment!.dueDate,
+          status: getAssignmentStatus(updatedAssignment!.dueDate, updatedAssignment!.isCompleted),
+        };
+        return [newActivity, ...previousActivity].slice(0, 8);
+      });
+    }
+  };
+
+  const value: AppDataContextValue = {
+    courses,
+    assignments,
+    activity,
+    addCourse,
+    addAssignment,
+    updateAssignment,
+    toggleAssignmentCompletion,
+  };
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;
 }

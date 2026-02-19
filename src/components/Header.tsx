@@ -1,11 +1,18 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+
 type HeaderProps = {
   title?: string;
 };
 
 export default function Header({ title }: HeaderProps) {
-  const resolvedTitle = title ?? "Assignment Tracker";
+  const pathname = usePathname();
+  const resolvedTitle =
+    title ??
+    (pathname.startsWith("/app/assignments/")
+      ? "Assignment Details"
+      : "Assignment Tracker");
 
   return (
     <header className="border-b border-slate-200 bg-white">

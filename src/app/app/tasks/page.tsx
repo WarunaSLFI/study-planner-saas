@@ -6,16 +6,30 @@ import AssignmentModal, {
   type NewAssignment,
 } from "@/components/AssignmentModal";
 import AssignmentsTable, {
+  type AssignmentItem,
   type AssignmentStatus,
 } from "@/components/AssignmentsTable";
+
+import { getAssignmentStatus } from "@/lib/assignmentStatus";
 
 type StatusFilter = "All" | AssignmentStatus;
 
 export default function TasksPage() {
-  const { courses, assignments, addAssignment } = useAppData();
+  const { courses, assignments, addAssignment, updateAssignment, toggleAssignmentCompletion } = useAppData();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<AssignmentItem | null>(null);
+
+  const handleEditClick = (assignment: AssignmentItem) => {
+    setEditingAssignment(assignment);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingAssignment(null);
+  };
 
   const filteredAssignments = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -25,7 +39,7 @@ export default function TasksPage() {
         assignment.title.toLowerCase().includes(query) ||
         assignment.course.toLowerCase().includes(query);
       const matchesStatus =
-        statusFilter === "All" || assignment.status === statusFilter;
+        statusFilter === "All" || getAssignmentStatus(assignment.dueDate, assignment.isCompleted) === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -42,7 +56,10 @@ export default function TasksPage() {
           <h2 className="text-lg font-semibold text-slate-900">Assignments</h2>
           <button
             type="button"
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              setEditingAssignment(null);
+              setIsModalOpen(true);
+            }}
             className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700"
           >
             Add Assignment
@@ -83,12 +100,14 @@ export default function TasksPage() {
         </div>
       </section>
 
-      <AssignmentsTable assignments={filteredAssignments} />
+      <AssignmentsTable assignments={filteredAssignments} onEdit={handleEditClick} onToggleCompletion={(id) => toggleAssignmentCompletion(id)} />
 
       <AssignmentModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={handleCloseModal}
         onAdd={handleAddAssignment}
+        onEdit={(id, updated) => updateAssignment(id, updated)}
+        existingAssignment={editingAssignment}
         courses={courses}
       />
     </div>
