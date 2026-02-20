@@ -9,14 +9,15 @@ import {
 } from "react";
 import type { AssignmentItem, AssignmentStatus } from "@/components/AssignmentsTable";
 
-export type CourseItem = {
+export type SubjectItem = {
   id: string;
   name: string;
+  code: string;
 };
 
 export type AddAssignmentInput = {
   title: string;
-  courseId: string;
+  subjectId: string;
   dueDate: string;
   isCompleted: boolean;
   score: string;
@@ -27,39 +28,43 @@ export type ActivityItem = {
   assignmentId: string;
   type: "assignment_created" | "assignment_completed" | "assignment_uncompleted";
   title: string;
-  courseName: string;
+  subjectName: string;
   createdAt: string;
   dueDate: string; // fallback if assignment removed
   status: AssignmentStatus;
 };
 
 export type AppDataState = {
-  courses: CourseItem[];
+  subjects: SubjectItem[];
   assignments: AssignmentItem[];
   activity: ActivityItem[];
 };
 
 type AppDataContextValue = {
-  courses: CourseItem[];
+  subjects: SubjectItem[];
   assignments: AssignmentItem[];
   activity: ActivityItem[];
-  addCourse: (name: string) => void;
+  addSubject: (name: string, code: string) => void;
+  addSubjectsBulk: (rows: import("@/lib/parseSubjects").ParsedSubjectRow[]) => void;
   addAssignment: (assignmentData: AddAssignmentInput) => void;
   updateAssignment: (id: string, updatedData: Partial<AssignmentItem>) => void;
   toggleAssignmentCompletion: (id: string) => void;
+  resetData: () => void;
+  exportData: () => string;
+  importData: (jsonString: string) => boolean;
 };
 
-const initialCourses: CourseItem[] = [
-  { id: "course-operating-systems", name: "Operating Systems" },
-  { id: "course-datapipelines", name: "Datapipelines" },
-  { id: "course-finnish-society", name: "Finnish Society" },
+const initialSubjects: SubjectItem[] = [
+  { id: "subject-operating-systems", name: "Operating Systems", code: "5G00DL86" },
+  { id: "subject-datapipelines", name: "Datapipelines", code: "NN00FC85" },
+  { id: "subject-finnish-society", name: "Finnish Society", code: "5G00GC28" },
 ];
 
 const initialAssignments: AssignmentItem[] = [
   {
     id: "assignment-1",
     title: "Operating Systems Exercise 4",
-    courseId: "course-operating-systems",
+    subjectId: "subject-operating-systems",
     course: "Operating Systems",
     dueDate: "2026-02-25",
     isCompleted: true,
@@ -69,7 +74,7 @@ const initialAssignments: AssignmentItem[] = [
   {
     id: "assignment-2",
     title: "Datapipelines Project",
-    courseId: "course-datapipelines",
+    subjectId: "subject-datapipelines",
     course: "Datapipelines",
     dueDate: "2026-03-10",
     isCompleted: false,
@@ -79,7 +84,7 @@ const initialAssignments: AssignmentItem[] = [
   {
     id: "assignment-3",
     title: "Finnish Society Quiz",
-    courseId: "course-finnish-society",
+    subjectId: "subject-finnish-society",
     course: "Finnish Society",
     dueDate: "2026-02-20",
     isCompleted: false,
@@ -96,7 +101,7 @@ const initialActivity: ActivityItem[] = [
     assignmentId: "assignment-2",
     type: "assignment_created",
     title: "Datapipelines Project",
-    courseName: "Datapipelines",
+    subjectName: "Datapipelines",
     createdAt: "2026-02-18T14:30:00.000Z",
     dueDate: "2026-03-10",
     status: "Upcoming",
@@ -106,7 +111,7 @@ const initialActivity: ActivityItem[] = [
     assignmentId: "assignment-1",
     type: "assignment_created",
     title: "Operating Systems Exercise 4",
-    courseName: "Operating Systems",
+    subjectName: "Operating Systems",
     createdAt: "2026-02-15T10:00:00.000Z",
     dueDate: "2026-02-25",
     status: "Completed",
@@ -116,7 +121,7 @@ const initialActivity: ActivityItem[] = [
     assignmentId: "assignment-3",
     type: "assignment_created",
     title: "Finnish Society Quiz",
-    courseName: "Finnish Society",
+    subjectName: "Finnish Society",
     createdAt: "2026-02-10T09:15:00.000Z",
     dueDate: "2026-02-20",
     status: "Overdue",
@@ -129,18 +134,18 @@ type AppDataProviderProps = {
   children: ReactNode;
 };
 
-function createCourseId(name: string): string {
+function createSubjectId(name: string): string {
   const slug = name
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-  return `course-${slug || "new"}-${Date.now()}`;
+  return `subject-${slug || "new"}-${Date.now()}`;
 }
 
 export default function AppDataProvider({ children }: AppDataProviderProps) {
-  const [courses, setCourses] = useState<CourseItem[]>(initialCourses);
+  const [subjects, setSubjects] = useState<SubjectItem[]>(initialSubjects);
   const [assignments, setAssignments] =
     useState<AssignmentItem[]>(initialAssignments);
   const [activity, setActivity] = useState<ActivityItem[]>(initialActivity);
@@ -153,9 +158,22 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
       const storedData = localStorage.getItem("assignment-tracker-data");
       if (storedData) {
         const parsed: AppDataState = JSON.parse(storedData);
-        if (parsed.courses) setCourses(parsed.courses);
-        if (parsed.assignments) setAssignments(parsed.assignments);
-        if (parsed.activity) setActivity(parsed.activity);
+        // Map courses arrays to subjects arrays for migrating users seamlessly
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const loadedSubjects = parsed.subjects || (parsed as any).courses;
+        if (loadedSubjects) {
+          // Add default code if migrating
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          setSubjects(loadedSubjects.map((s: any) => ({ ...s, code: s.code || "UNKNOWN" })));
+        }
+        if (parsed.assignments) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          setAssignments(parsed.assignments.map((a: any) => ({ ...a, subjectId: a.subjectId || a.courseId })));
+        }
+        if (parsed.activity) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          setActivity(parsed.activity.map((a: any) => ({ ...a, subjectName: a.subjectName || a.courseName })));
+        }
       }
     } catch (e) {
       console.error("Failed to parse local storage data:", e);
@@ -169,28 +187,47 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
     if (isClient) {
       localStorage.setItem(
         "assignment-tracker-data",
-        JSON.stringify({ courses, assignments, activity }),
+        JSON.stringify({ subjects, assignments, activity }),
       );
     }
-  }, [courses, assignments, activity, isClient]);
+  }, [subjects, assignments, activity, isClient]);
 
-  const addCourse = (name: string) => {
+  const addSubject = (name: string, code: string) => {
     const trimmedName = name.trim();
-    if (!trimmedName) {
-      return;
-    }
+    if (!trimmedName || !code.trim()) return;
 
-    setCourses((previousCourses) => [
-      ...previousCourses,
-      { id: createCourseId(trimmedName), name: trimmedName },
+    setSubjects((prev) => [
+      ...prev,
+      { id: createSubjectId(trimmedName), name: trimmedName, code: code.trim() },
     ]);
   };
 
+  const addSubjectsBulk = (rows: import("@/lib/parseSubjects").ParsedSubjectRow[]) => {
+    setSubjects((prev) => {
+      const existingCodes = new Set(prev.map((s) => s.code.toLowerCase()));
+      const newSubjects: SubjectItem[] = [];
+
+      for (const row of rows) {
+        const cleanCode = row.code.trim();
+        if (!existingCodes.has(cleanCode.toLowerCase())) {
+          newSubjects.push({
+            id: createSubjectId(row.name),
+            name: row.name.trim(),
+            code: cleanCode,
+          });
+          existingCodes.add(cleanCode.toLowerCase());
+        }
+      }
+
+      return [...prev, ...newSubjects];
+    });
+  };
+
   const addAssignment = (assignmentData: AddAssignmentInput) => {
-    const relatedCourse = courses.find(
-      (course) => course.id === assignmentData.courseId,
+    const relatedSubject = subjects.find(
+      (sub) => sub.id === assignmentData.subjectId,
     );
-    const courseName = relatedCourse?.name ?? "Unknown Course";
+    const subjectName = relatedSubject?.name ?? "Unknown Subject";
     const now = new Date().toISOString();
     const newAssignmentId = `assignment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -198,8 +235,8 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
       {
         id: newAssignmentId,
         title: assignmentData.title.trim(),
-        courseId: assignmentData.courseId,
-        course: courseName,
+        subjectId: assignmentData.subjectId,
+        course: subjectName,
         dueDate: assignmentData.dueDate,
         isCompleted: assignmentData.isCompleted,
         score: assignmentData.score,
@@ -214,7 +251,7 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
         assignmentId: newAssignmentId,
         type: "assignment_created",
         title: assignmentData.title.trim(),
-        courseName,
+        subjectName,
         createdAt: now,
         dueDate: assignmentData.dueDate,
         status: getAssignmentStatus(assignmentData.dueDate, assignmentData.isCompleted),
@@ -230,10 +267,10 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
           ? {
             ...assignment,
             ...updatedData,
-            // Update course name if courseId changes
+            // Update course name if subjectId changes
             course:
-              updatedData.courseId && updatedData.courseId !== assignment.courseId
-                ? courses.find((c) => c.id === updatedData.courseId)?.name ?? "Unknown Course"
+              updatedData.subjectId && updatedData.subjectId !== assignment.subjectId
+                ? subjects.find((c) => c.id === updatedData.subjectId)?.name ?? "Unknown Subject"
                 : updatedData.course ?? assignment.course,
           }
           : assignment,
@@ -267,7 +304,7 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
           assignmentId: updatedAssignment!.id,
           type: actionType,
           title: updatedAssignment!.title,
-          courseName: updatedAssignment!.course,
+          subjectName: updatedAssignment!.course,
           createdAt: now,
           dueDate: updatedAssignment!.dueDate,
           status: getAssignmentStatus(updatedAssignment!.dueDate, updatedAssignment!.isCompleted),
@@ -277,14 +314,49 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
     }
   };
 
+  const resetData = () => {
+    localStorage.removeItem("assignment-tracker-data");
+    setSubjects(initialSubjects);
+    setAssignments(initialAssignments);
+    setActivity(initialActivity);
+  };
+
+  const exportData = (): string => {
+    return JSON.stringify({ subjects, assignments, activity });
+  };
+
+  const importData = (jsonString: string): boolean => {
+    try {
+      const parsed = JSON.parse(jsonString);
+      // Support old 'courses' arrays on import for backwards compat
+      const importedSubjects = parsed.subjects || parsed.courses;
+
+      if (Array.isArray(importedSubjects) && Array.isArray(parsed.assignments) && Array.isArray(parsed.activity)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setSubjects(importedSubjects.map((s: any) => ({ ...s, code: s.code || "UNKNOWN" })));
+        setAssignments(parsed.assignments);
+        setActivity(parsed.activity);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("Failed to parse import data", e);
+      return false;
+    }
+  };
+
   const value: AppDataContextValue = {
-    courses,
+    subjects,
     assignments,
     activity,
-    addCourse,
+    addSubject,
+    addSubjectsBulk,
     addAssignment,
     updateAssignment,
     toggleAssignmentCompletion,
+    resetData,
+    exportData,
+    importData,
   };
 
   if (!isHydrated) {

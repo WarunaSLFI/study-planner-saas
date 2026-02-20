@@ -3,7 +3,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import type {
   AddAssignmentInput,
-  CourseItem,
+  SubjectItem,
 } from "@/app/app/providers/AppDataProvider";
 import type { AssignmentItem } from "@/components/AssignmentsTable";
 
@@ -15,21 +15,21 @@ type AssignmentModalProps = {
   onAdd: (assignment: NewAssignment) => void;
   onEdit?: (id: string, assignment: Partial<AssignmentItem>) => void;
   existingAssignment?: AssignmentItem | null;
-  courses: CourseItem[];
+  subjects: SubjectItem[];
 };
 
 type FormState = {
   title: string;
-  courseId: string;
+  subjectId: string;
   dueDate: string;
   isCompleted: boolean;
   notes: string;
 };
 
-function createInitialFormState(defaultCourseId: string): FormState {
+function createInitialFormState(defaultSubjectId: string): FormState {
   return {
     title: "",
-    courseId: defaultCourseId,
+    subjectId: defaultSubjectId,
     dueDate: "",
     isCompleted: false,
     notes: "",
@@ -42,11 +42,11 @@ export default function AssignmentModal({
   onAdd,
   onEdit,
   existingAssignment,
-  courses,
+  subjects,
 }: AssignmentModalProps) {
-  const defaultCourseId = courses[0]?.id ?? "";
+  const defaultSubjectId = subjects[0]?.id ?? "";
   const [form, setForm] = useState<FormState>(() =>
-    createInitialFormState(defaultCourseId),
+    createInitialFormState(defaultSubjectId),
   );
 
   const updateField = <Key extends keyof FormState>(
@@ -65,22 +65,22 @@ export default function AssignmentModal({
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm({
         title: existingAssignment.title,
-        courseId: existingAssignment.courseId,
+        subjectId: existingAssignment.subjectId,
         dueDate: existingAssignment.dueDate,
         isCompleted: existingAssignment.isCompleted,
         notes: "",
       });
     } else {
       setForm((previousForm) =>
-        previousForm.courseId
+        previousForm.subjectId
           ? previousForm
-          : { ...previousForm, courseId: defaultCourseId },
+          : { ...previousForm, subjectId: defaultSubjectId },
       );
     }
-  }, [isOpen, defaultCourseId, existingAssignment]);
+  }, [isOpen, defaultSubjectId, existingAssignment]);
 
   const resetForm = () => {
-    setForm(createInitialFormState(defaultCourseId));
+    setForm(createInitialFormState(defaultSubjectId));
   };
 
   const handleClose = () => {
@@ -96,7 +96,7 @@ export default function AssignmentModal({
     if (existingAssignment && onEdit) {
       onEdit(existingAssignment.id, {
         title: form.title.trim(),
-        courseId: form.courseId,
+        subjectId: form.subjectId,
         dueDate: form.dueDate,
         isCompleted: form.isCompleted,
         score: scoreValue,
@@ -104,7 +104,7 @@ export default function AssignmentModal({
     } else {
       onAdd({
         title: form.title.trim(),
-        courseId: form.courseId,
+        subjectId: form.subjectId,
         dueDate: form.dueDate,
         isCompleted: form.isCompleted,
         score: scoreValue,
@@ -151,20 +151,20 @@ export default function AssignmentModal({
 
             <label className="block">
               <span className="mb-2 block text-lg font-medium text-slate-600">
-                Course
+                Subject
               </span>
               <select
                 required
-                value={form.courseId}
-                onChange={(event) => updateField("courseId", event.target.value)}
+                value={form.subjectId}
+                onChange={(event) => updateField("subjectId", event.target.value)}
                 className="w-full rounded-xl border border-slate-300 px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
               >
-                {courses.length === 0 ? (
-                  <option value="">No courses available</option>
+                {subjects.length === 0 ? (
+                  <option value="">No subjects available</option>
                 ) : null}
-                {courses.map((course) => (
-                  <option key={course.id} value={course.id}>
-                    {course.name}
+                {subjects.map((sub) => (
+                  <option key={sub.id} value={sub.id}>
+                    {sub.name}
                   </option>
                 ))}
               </select>
@@ -219,7 +219,7 @@ export default function AssignmentModal({
             </button>
             <button
               type="submit"
-              disabled={courses.length === 0}
+              disabled={subjects.length === 0}
               className="rounded-xl bg-slate-900 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700"
             >
               {existingAssignment ? "Save Changes" : "Add Assignment"}

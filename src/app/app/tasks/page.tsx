@@ -15,7 +15,7 @@ import { getAssignmentStatus } from "@/lib/assignmentStatus";
 type StatusFilter = "All" | AssignmentStatus;
 
 export default function TasksPage() {
-  const { courses, assignments, addAssignment, updateAssignment, toggleAssignmentCompletion } = useAppData();
+  const { subjects, assignments, addAssignment, updateAssignment, toggleAssignmentCompletion } = useAppData();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -99,7 +99,7 @@ export default function TasksPage() {
               type="text"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search by title or course"
+              placeholder="Search by title or subject"
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
             />
           </label>
@@ -133,7 +133,7 @@ export default function TasksPage() {
         onAdd={handleAddAssignment}
         onEdit={(id, updated) => updateAssignment(id, updated)}
         existingAssignment={editingAssignment}
-        courses={courses}
+        subjects={subjects}
       />
     </div>
   );

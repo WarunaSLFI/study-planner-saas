@@ -10,7 +10,7 @@ import { getAssignmentStatus } from "@/lib/assignmentStatus";
 
 export default function AssignmentDetailPage() {
   const params = useParams<{ id: string | string[] }>();
-  const { assignments, courses, addAssignment, updateAssignment } = useAppData();
+  const { assignments, subjects, addAssignment, updateAssignment } = useAppData();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const assignmentId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -33,8 +33,8 @@ export default function AssignmentDetailPage() {
     );
   }
 
-  const courseName =
-    courses.find((course) => course.id === assignment.courseId)?.name ??
+  const subjectName =
+    subjects.find((sub) => sub.id === assignment.subjectId)?.name ??
     assignment.course;
 
   return (
@@ -65,8 +65,8 @@ export default function AssignmentDetailPage() {
 
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <p className="text-lg font-medium text-slate-600">Course</p>
-            <p className="mt-1 text-lg text-slate-900">{courseName}</p>
+            <p className="text-lg font-medium text-slate-600">Subject</p>
+            <p className="mt-1 text-lg text-slate-900">{subjectName}</p>
           </div>
 
           <div>
@@ -96,7 +96,7 @@ export default function AssignmentDetailPage() {
         onAdd={(assignment) => addAssignment(assignment)}
         onEdit={(id, updated) => updateAssignment(id, updated)}
         existingAssignment={assignment}
-        courses={courses}
+        subjects={subjects}
       />
     </div>
   );

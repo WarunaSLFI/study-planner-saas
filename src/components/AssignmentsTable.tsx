@@ -5,7 +5,7 @@ export type AssignmentStatus = "Upcoming" | "Due Soon" | "Overdue" | "Completed"
 export type AssignmentItem = {
   id: string;
   title: string;
-  courseId: string;
+  subjectId: string;
   course: string;
   dueDate: string;
   isCompleted: boolean;
