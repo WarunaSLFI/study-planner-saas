@@ -67,18 +67,34 @@ export default function DashboardPage() {
                     <span className="px-3 py-1 text-xs rounded-md bg-gray-100 text-gray-700">
                       Created {formattedDate}
                     </span>
-                    <span
-                      className={`px-3 py-1 text-xs rounded-md ${item.status === "Overdue"
-                        ? "bg-red-100 text-red-700"
-                        : item.status === "Due Soon"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : item.status === "Completed"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-blue-100 text-blue-700"
-                        }`}
-                    >
-                      Due {item.dueDate}
-                    </span>
+                    {(() => {
+                      const assignment = assignments.find(
+                        (a) => a.id === item.assignmentId || (!item.assignmentId && a.title === item.title)
+                      );
+                      const currentStatus = assignment
+                        ? getAssignmentStatus(assignment.dueDate, assignment.isCompleted)
+                        : item.status;
+
+                      const statusColorClass =
+                        currentStatus === "Overdue"
+                          ? "bg-red-100 text-red-700"
+                          : currentStatus === "Due Soon"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : currentStatus === "Completed"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-blue-100 text-blue-700";
+
+                      return (
+                        <>
+                          <span className={`px-3 py-1 text-xs rounded-md ${statusColorClass} font-medium`}>
+                            {currentStatus}
+                          </span>
+                          <span className={`px-3 py-1 text-xs rounded-md ${statusColorClass}`}>
+                            Due {item.dueDate}
+                          </span>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               );

@@ -24,6 +24,7 @@ export type AddAssignmentInput = {
 
 export type ActivityItem = {
   id: string;
+  assignmentId: string;
   type: "assignment_created" | "assignment_completed" | "assignment_uncompleted";
   title: string;
   courseName: string;
@@ -92,6 +93,7 @@ import { getAssignmentStatus } from "@/lib/assignmentStatus";
 const initialActivity: ActivityItem[] = [
   {
     id: "activity-1",
+    assignmentId: "assignment-2",
     type: "assignment_created",
     title: "Datapipelines Project",
     courseName: "Datapipelines",
@@ -101,6 +103,7 @@ const initialActivity: ActivityItem[] = [
   },
   {
     id: "activity-2",
+    assignmentId: "assignment-1",
     type: "assignment_created",
     title: "Operating Systems Exercise 4",
     courseName: "Operating Systems",
@@ -110,6 +113,7 @@ const initialActivity: ActivityItem[] = [
   },
   {
     id: "activity-3",
+    assignmentId: "assignment-3",
     type: "assignment_created",
     title: "Finnish Society Quiz",
     courseName: "Finnish Society",
@@ -188,10 +192,11 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
     );
     const courseName = relatedCourse?.name ?? "Unknown Course";
     const now = new Date().toISOString();
+    const newAssignmentId = `assignment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     setAssignments((previousAssignments) => [
       {
-        id: `assignment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        id: newAssignmentId,
         title: assignmentData.title.trim(),
         courseId: assignmentData.courseId,
         course: courseName,
@@ -206,6 +211,7 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
     setActivity((previousActivity) => {
       const newActivity: ActivityItem = {
         id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        assignmentId: newAssignmentId,
         type: "assignment_created",
         title: assignmentData.title.trim(),
         courseName,
@@ -258,6 +264,7 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
 
         const newActivity: ActivityItem = {
           id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          assignmentId: updatedAssignment!.id,
           type: actionType,
           title: updatedAssignment!.title,
           courseName: updatedAssignment!.course,
