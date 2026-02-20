@@ -141,6 +141,7 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
     useState<AssignmentItem[]>(initialAssignments);
   const [activity, setActivity] = useState<ActivityItem[]>(initialActivity);
   const [isClient, setIsClient] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -155,6 +156,8 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
     } catch (e) {
       console.error("Failed to parse local storage data:", e);
       localStorage.removeItem("assignment-tracker-data");
+    } finally {
+      setIsHydrated(true);
     }
   }, []);
 
@@ -276,6 +279,10 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
     updateAssignment,
     toggleAssignmentCompletion,
   };
+
+  if (!isHydrated) {
+    return <div className="p-6 text-sm text-gray-500">Loading...</div>;
+  }
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;
 }
