@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useAppData } from "@/app/app/providers/AppDataProvider";
 
 export type AssignmentStatus = "Upcoming" | "Due Soon" | "Overdue" | "Completed";
 
@@ -29,6 +32,8 @@ export const statusBadgeStyles: Record<AssignmentStatus, string> = {
 import { getAssignmentStatus } from "@/lib/assignmentStatus";
 
 export default function AssignmentsTable({ assignments, onEdit, onToggleCompletion }: AssignmentsTableProps) {
+  const { subjects } = useAppData();
+
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="overflow-x-auto">
@@ -52,53 +57,66 @@ export default function AssignmentsTable({ assignments, onEdit, onToggleCompleti
                 </td>
               </tr>
             ) : (
-              assignments.map((assignment) => (
-                <tr key={assignment.id}>
-                  <td className="px-3 py-4 text-lg font-medium text-slate-900">
-                    {assignment.title}
-                  </td>
-                  <td className="px-3 py-4 text-lg text-slate-700">
-                    {assignment.subject}
-                  </td>
-                  <td className="px-3 py-4 text-lg text-slate-700">
-                    {assignment.dueDate}
-                  </td>
-                  <td className="px-3 py-4 text-lg text-slate-700">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-1 text-lg font-semibold ring-1 ring-inset ${statusBadgeStyles[getAssignmentStatus(assignment.dueDate, assignment.isCompleted)]}`}
-                    >
-                      {getAssignmentStatus(assignment.dueDate, assignment.isCompleted)}
-                    </span>
-                  </td>
-                  <td className="px-3 py-4 text-lg">
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/app/assignments/${assignment.id}`}
-                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
+              assignments.map((assignment) => {
+                const subjectCode = subjects?.find(s => s.id === assignment.subjectId)?.code;
+
+                return (
+                  <tr key={assignment.id}>
+                    <td className="px-3 py-4 text-lg font-medium text-slate-900">
+                      {assignment.title}
+                    </td>
+                    <td className="px-3 py-4 text-slate-700">
+                      <div className="flex flex-col">
+                        <span className="text-lg font-medium truncate max-w-[220px]">
+                          {assignment.subject}
+                        </span>
+                        {subjectCode && subjectCode.trim() !== "" && subjectCode !== "UNKNOWN" && (
+                          <span className="text-xs text-gray-500">
+                            {subjectCode}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-4 text-lg text-slate-700">
+                      {assignment.dueDate}
+                    </td>
+                    <td className="px-3 py-4 text-lg text-slate-700">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-lg font-semibold ring-1 ring-inset ${statusBadgeStyles[getAssignmentStatus(assignment.dueDate, assignment.isCompleted)]}`}
                       >
-                        View
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => onEdit?.(assignment)}
-                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onToggleCompletion?.(assignment.id)}
-                        className={`rounded-md px-3 py-1 text-sm font-medium transition ${assignment.isCompleted
-                          ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                          : "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100"
-                          }`}
-                      >
-                        {assignment.isCompleted ? "Undo" : "Mark Complete"}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
+                        {getAssignmentStatus(assignment.dueDate, assignment.isCompleted)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-4 text-lg">
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/app/assignments/${assignment.id}`}
+                          className="rounded-lg border border-slate-300 px-3 py-1.5 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
+                        >
+                          View
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => onEdit?.(assignment)}
+                          className="rounded-lg border border-slate-300 px-3 py-1.5 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onToggleCompletion?.(assignment.id)}
+                          className={`rounded-md px-3 py-1 text-sm font-medium transition ${assignment.isCompleted
+                            ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            : "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100"
+                            }`}
+                        >
+                          {assignment.isCompleted ? "Undo" : "Mark Complete"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
