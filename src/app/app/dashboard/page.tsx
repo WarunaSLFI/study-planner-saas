@@ -47,7 +47,7 @@ export default function DashboardPage() {
               return (
                 <div key={item.id} className="px-4 py-4 flex flex-col gap-1">
                   <p className="text-xl font-medium text-slate-900">
-                    {item.title} ({item.courseName})
+                    {item.title} ({item.subjectName})
                   </p>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
                     <span

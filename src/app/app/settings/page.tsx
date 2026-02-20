@@ -70,12 +70,12 @@ export default function SettingsPage() {
         <div className="mt-8 border-t border-slate-200 pt-6">
           <h3 className="text-sm font-medium text-slate-900">Import Data</h3>
           <p className="mt-1 text-xs text-slate-500">
-            Paste your JSON backup data below to restore your courses and assignments.
+            Paste your JSON backup data below to restore your subjects and assignments.
           </p>
           <textarea
             className="mt-3 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             rows={5}
-            placeholder='{"courses": [...], "assignments": [...], "activity": [...]}'
+            placeholder='{"subjects": [...], "assignments": [...], "activity": [...]}'
             value={importJson}
             onChange={(e) => setImportJson(e.target.value)}
           />

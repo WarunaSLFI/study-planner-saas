@@ -2,7 +2,7 @@ import NavLink from "@/components/NavLink";
 
 const navigationItems = [
   { href: "/app/dashboard", label: "Dashboard" },
-  { href: "/app/courses", label: "Courses" },
+  { href: "/app/courses", label: "Subjects" },
   { href: "/app/tasks", label: "Assignments" },
   { href: "/app/planner", label: "Planner" },
   { href: "/app/settings", label: "Settings" },

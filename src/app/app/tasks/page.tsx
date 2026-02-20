@@ -37,7 +37,7 @@ export default function TasksPage() {
     return assignments.filter((assignment) => {
       const matchesSearch =
         assignment.title.toLowerCase().includes(query) ||
-        assignment.course.toLowerCase().includes(query);
+        assignment.subject.toLowerCase().includes(query);
       const matchesStatus =
         statusFilter === "All" || getAssignmentStatus(assignment.dueDate, assignment.isCompleted) === statusFilter;
 

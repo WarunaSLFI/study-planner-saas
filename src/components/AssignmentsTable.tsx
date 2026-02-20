@@ -6,7 +6,7 @@ export type AssignmentItem = {
   id: string;
   title: string;
   subjectId: string;
-  course: string;
+  subject: string;
   dueDate: string;
   isCompleted: boolean;
   score: string;
@@ -36,7 +36,7 @@ export default function AssignmentsTable({ assignments, onEdit, onToggleCompleti
           <thead className="border-b border-slate-200">
             <tr>
               <th className="px-3 py-3 text-lg font-semibold text-slate-600">Title</th>
-              <th className="px-3 py-3 text-lg font-semibold text-slate-600">Course</th>
+              <th className="px-3 py-3 text-lg font-semibold text-slate-600">Subject</th>
               <th className="px-3 py-3 text-lg font-semibold text-slate-600">
                 Due Date
               </th>
@@ -58,7 +58,7 @@ export default function AssignmentsTable({ assignments, onEdit, onToggleCompleti
                     {assignment.title}
                   </td>
                   <td className="px-3 py-4 text-lg text-slate-700">
-                    {assignment.course}
+                    {assignment.subject}
                   </td>
                   <td className="px-3 py-4 text-lg text-slate-700">
                     {assignment.dueDate}

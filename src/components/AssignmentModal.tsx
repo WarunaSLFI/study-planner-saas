@@ -162,11 +162,15 @@ export default function AssignmentModal({
                 {subjects.length === 0 ? (
                   <option value="">No subjects available</option>
                 ) : null}
-                {subjects.map((sub) => (
-                  <option key={sub.id} value={sub.id}>
-                    {sub.name}
-                  </option>
-                ))}
+                {subjects.map((sub) => {
+                  const hasValidCode = sub.code && sub.code.trim() !== "" && sub.code !== "UNKNOWN";
+                  const displayName = hasValidCode ? `${sub.code} — ${sub.name}` : sub.name;
+                  return (
+                    <option key={sub.id} value={sub.id}>
+                      {displayName}
+                    </option>
+                  );
+                })}
               </select>
             </label>
 

@@ -45,7 +45,7 @@ type AppDataContextValue = {
   assignments: AssignmentItem[];
   activity: ActivityItem[];
   addSubject: (name: string, code: string) => void;
-  addSubjectsBulk: (rows: import("@/lib/parseSubjects").ParsedSubjectRow[]) => void;
+  addSubjectsBulk: (rows: import("@/lib/parseSubjects").ParsedSubjectRow[]) => { addedCount: number; skippedCount: number };
   addAssignment: (assignmentData: AddAssignmentInput) => void;
   updateAssignment: (id: string, updatedData: Partial<AssignmentItem>) => void;
   toggleAssignmentCompletion: (id: string) => void;
@@ -65,7 +65,7 @@ const initialAssignments: AssignmentItem[] = [
     id: "assignment-1",
     title: "Operating Systems Exercise 4",
     subjectId: "subject-operating-systems",
-    course: "Operating Systems",
+    subject: "Operating Systems",
     dueDate: "2026-02-25",
     isCompleted: true,
     score: "9/10",
@@ -75,7 +75,7 @@ const initialAssignments: AssignmentItem[] = [
     id: "assignment-2",
     title: "Datapipelines Project",
     subjectId: "subject-datapipelines",
-    course: "Datapipelines",
+    subject: "Datapipelines",
     dueDate: "2026-03-10",
     isCompleted: false,
     score: "24/30",
@@ -85,7 +85,7 @@ const initialAssignments: AssignmentItem[] = [
     id: "assignment-3",
     title: "Finnish Society Quiz",
     subjectId: "subject-finnish-society",
-    course: "Finnish Society",
+    subject: "Finnish Society",
     dueDate: "2026-02-20",
     isCompleted: false,
     score: "8/10",
@@ -203,24 +203,32 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
   };
 
   const addSubjectsBulk = (rows: import("@/lib/parseSubjects").ParsedSubjectRow[]) => {
-    setSubjects((prev) => {
-      const existingCodes = new Set(prev.map((s) => s.code.toLowerCase()));
-      const newSubjects: SubjectItem[] = [];
+    let addedCount = 0;
+    let skippedCount = 0;
 
-      for (const row of rows) {
-        const cleanCode = row.code.trim();
-        if (!existingCodes.has(cleanCode.toLowerCase())) {
-          newSubjects.push({
-            id: createSubjectId(row.name),
-            name: row.name.trim(),
-            code: cleanCode,
-          });
-          existingCodes.add(cleanCode.toLowerCase());
-        }
+    const existingCodes = new Set(subjects.map((s) => s.code.trim().toUpperCase()));
+    const newSubjects: SubjectItem[] = [];
+
+    for (const row of rows) {
+      const cleanCode = row.code.trim().toUpperCase();
+      if (!existingCodes.has(cleanCode)) {
+        newSubjects.push({
+          id: createSubjectId(row.name),
+          name: row.name.trim(),
+          code: row.code.trim(),
+        });
+        existingCodes.add(cleanCode);
+        addedCount++;
+      } else {
+        skippedCount++;
       }
+    }
 
-      return [...prev, ...newSubjects];
-    });
+    if (newSubjects.length > 0) {
+      setSubjects((prev) => [...prev, ...newSubjects]);
+    }
+
+    return { addedCount, skippedCount };
   };
 
   const addAssignment = (assignmentData: AddAssignmentInput) => {
@@ -236,7 +244,7 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
         id: newAssignmentId,
         title: assignmentData.title.trim(),
         subjectId: assignmentData.subjectId,
-        course: subjectName,
+        subject: subjectName,
         dueDate: assignmentData.dueDate,
         isCompleted: assignmentData.isCompleted,
         score: assignmentData.score,
@@ -267,11 +275,11 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
           ? {
             ...assignment,
             ...updatedData,
-            // Update course name if subjectId changes
-            course:
+            // Update subject name if subjectId changes
+            subject:
               updatedData.subjectId && updatedData.subjectId !== assignment.subjectId
                 ? subjects.find((c) => c.id === updatedData.subjectId)?.name ?? "Unknown Subject"
-                : updatedData.course ?? assignment.course,
+                : updatedData.subject ?? assignment.subject,
           }
           : assignment,
       ),
@@ -304,7 +312,7 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
           assignmentId: updatedAssignment!.id,
           type: actionType,
           title: updatedAssignment!.title,
-          subjectName: updatedAssignment!.course,
+          subjectName: updatedAssignment!.subject,
           createdAt: now,
           dueDate: updatedAssignment!.dueDate,
           status: getAssignmentStatus(updatedAssignment!.dueDate, updatedAssignment!.isCompleted),

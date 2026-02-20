@@ -35,7 +35,7 @@ export default function AssignmentDetailPage() {
 
   const subjectName =
     subjects.find((sub) => sub.id === assignment.subjectId)?.name ??
-    assignment.course;
+    assignment.subject;
 
   return (
     <div className="space-y-6">

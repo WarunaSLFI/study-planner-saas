@@ -94,12 +94,13 @@ function AddSubjectModal({ isOpen, onClose, onAddSubject }: AddSubjectModalProps
 type ImportSubjectsModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onImportBulk: (rows: { name: string; code: string }[]) => void;
+  onImportBulk: (rows: { name: string; code: string }[]) => { addedCount: number; skippedCount: number };
+  existingSubjects: import("@/app/app/providers/AppDataProvider").SubjectItem[];
 };
 
-function ImportSubjectsModal({ isOpen, onClose, onImportBulk }: ImportSubjectsModalProps) {
+function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }: ImportSubjectsModalProps) {
   const [pastedText, setPastedText] = useState("");
-  const [parsedRows, setParsedRows] = useState<{ id: string; name: string; code: string; checked: boolean }[]>([]);
+  const [parsedRows, setParsedRows] = useState<{ id: string; name: string; code: string; checked: boolean; isNew: boolean }[]>([]);
   const [view, setView] = useState<"paste" | "preview">("paste");
 
   const handleClose = () => {
@@ -111,21 +112,27 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk }: ImportSubjectsMo
 
   const handleParse = () => {
     const rawRows = parseSubjectsFromText(pastedText);
+    const existingCodes = new Set(existingSubjects.map(s => s.code.trim().toUpperCase()));
+
     setParsedRows(
-      rawRows.map((r, i) => ({
-        id: `parsed-${i}-${Date.now()}`,
-        name: r.name,
-        code: r.code,
-        checked: true,
-      }))
+      rawRows.map((r, i) => {
+        const isNew = !existingCodes.has(r.code.trim().toUpperCase());
+        return {
+          id: `parsed-${i}-${Date.now()}`,
+          name: r.name,
+          code: r.code,
+          checked: isNew,
+          isNew,
+        };
+      })
     );
     setView("preview");
   };
 
   const handleImport = () => {
     const selectedRows = parsedRows.filter((r) => r.checked).map((r) => ({ name: r.name, code: r.code }));
-    onImportBulk(selectedRows);
-    alert(`Imported ${selectedRows.length} subjects successfully!`);
+    const { addedCount, skippedCount } = onImportBulk(selectedRows);
+    alert(`Imported ${addedCount} new subjects. Skipped ${skippedCount} existing.`);
     handleClose();
   };
 
@@ -203,12 +210,23 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk }: ImportSubjectsMo
                           />
                         </td>
                         <td className="p-3">
-                          <input
-                            type="text"
-                            value={row.code}
-                            onChange={(e) => setParsedRows((prev) => prev.map((r) => r.id === row.id ? { ...r, code: e.target.value } : r))}
-                            className="w-full border-0 bg-transparent p-0 text-sm font-mono focus:ring-0 font-medium"
-                          />
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={row.code}
+                              onChange={(e) => setParsedRows((prev) => prev.map((r) => r.id === row.id ? { ...r, code: e.target.value } : r))}
+                              className="w-full border-0 bg-transparent p-0 text-sm font-mono focus:ring-0 font-medium"
+                            />
+                            {row.isNew ? (
+                              <span className="inline-flex rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700 ring-1 ring-inset ring-green-200">
+                                New
+                              </span>
+                            ) : (
+                              <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
+                                Exists
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -330,6 +348,7 @@ export default function SubjectsPage() {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onImportBulk={addSubjectsBulk}
+        existingSubjects={subjects}
       />
     </div>
   );
