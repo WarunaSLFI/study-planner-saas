@@ -71,8 +71,9 @@ export default function DashboardPage() {
                       const assignment = assignments.find(
                         (a) => a.id === item.assignmentId || (!item.assignmentId && a.title === item.title)
                       );
+                      const dueDateToShow = assignment ? assignment.dueDate : item.dueDate;
                       const currentStatus = assignment
-                        ? getAssignmentStatus(assignment.dueDate, assignment.isCompleted)
+                        ? getAssignmentStatus(dueDateToShow, assignment.isCompleted)
                         : item.status;
 
                       const statusColorClass =
@@ -90,7 +91,7 @@ export default function DashboardPage() {
                             {currentStatus}
                           </span>
                           <span className={`px-3 py-1 text-xs rounded-md ${statusColorClass}`}>
-                            Due {item.dueDate}
+                            Due {dueDateToShow}
                           </span>
                         </>
                       );

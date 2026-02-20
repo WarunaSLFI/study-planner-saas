@@ -29,7 +29,7 @@ export type ActivityItem = {
   title: string;
   courseName: string;
   createdAt: string;
-  dueDate: string;
+  dueDate: string; // fallback if assignment removed
   status: AssignmentStatus;
 };
 
