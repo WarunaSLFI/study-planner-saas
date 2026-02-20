@@ -5,6 +5,7 @@ import {
   type ReactNode,
   useContext,
   useState,
+  useEffect,
 } from "react";
 import type { AssignmentItem, AssignmentStatus } from "@/components/AssignmentsTable";
 
@@ -29,6 +30,12 @@ export type ActivityItem = {
   createdAt: string;
   dueDate: string;
   status: AssignmentStatus;
+};
+
+export type AppDataState = {
+  courses: CourseItem[];
+  assignments: AssignmentItem[];
+  activity: ActivityItem[];
 };
 
 type AppDataContextValue = {
@@ -133,6 +140,32 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
   const [assignments, setAssignments] =
     useState<AssignmentItem[]>(initialAssignments);
   const [activity, setActivity] = useState<ActivityItem[]>(initialActivity);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+    try {
+      const storedData = localStorage.getItem("assignment-tracker-data");
+      if (storedData) {
+        const parsed: AppDataState = JSON.parse(storedData);
+        if (parsed.courses) setCourses(parsed.courses);
+        if (parsed.assignments) setAssignments(parsed.assignments);
+        if (parsed.activity) setActivity(parsed.activity);
+      }
+    } catch (e) {
+      console.error("Failed to parse local storage data:", e);
+      localStorage.removeItem("assignment-tracker-data");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isClient) {
+      localStorage.setItem(
+        "assignment-tracker-data",
+        JSON.stringify({ courses, assignments, activity }),
+      );
+    }
+  }, [courses, assignments, activity, isClient]);
 
   const addCourse = (name: string) => {
     const trimmedName = name.trim();
