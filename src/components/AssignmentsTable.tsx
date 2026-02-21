@@ -32,6 +32,17 @@ export const statusBadgeStyles: Record<AssignmentStatus, string> = {
 
 import { getAssignmentStatus } from "@/lib/assignmentStatus";
 
+function formatDate(dueDate: string) {
+  if (!dueDate) return "-";
+  const [year, month, day] = dueDate.split("-").map(Number);
+  const dateObj = new Date(year, month - 1, day);
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  }).format(dateObj);
+}
+
 export default function AssignmentsTable({ assignments, onEdit, onDelete, onToggleCompletion }: AssignmentsTableProps) {
   const { subjects } = useAppData();
 
@@ -79,7 +90,7 @@ export default function AssignmentsTable({ assignments, onEdit, onDelete, onTogg
                       </div>
                     </td>
                     <td className="px-3 py-4 text-lg text-slate-700">
-                      {assignment.dueDate}
+                      {formatDate(assignment.dueDate)}
                     </td>
                     <td className="px-3 py-4 text-lg text-slate-700">
                       <span

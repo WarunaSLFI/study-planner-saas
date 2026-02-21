@@ -49,6 +49,18 @@ export default function AssignmentModal({
     createInitialFormState(defaultSubjectId),
   );
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   const updateField = <Key extends keyof FormState>(
     field: Key,
     value: FormState[Key],

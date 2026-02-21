@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
+import { navigationItems } from "@/components/Sidebar";
+import { useTheme } from "next-themes";
 
 type HeaderProps = {
   title?: string;
@@ -12,6 +15,14 @@ export default function Header({ title }: HeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -100,58 +111,122 @@ export default function Header({ title }: HeaderProps) {
 
   return (
     <>
-      <header className="border-b border-slate-200 bg-white">
+      <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <div className="flex h-16 items-center justify-between px-6">
-          <h1 className="text-2xl font-semibold text-slate-900">{resolvedTitle}</h1>
-
-          {/* User menu */}
-          <div className="relative" ref={dropdownRef}>
+          <div className="flex items-center gap-4">
             <button
               type="button"
-              onClick={() => setDropdownOpen(prev => !prev)}
-              className="inline-flex items-center gap-2.5 rounded-full border border-slate-200 bg-white pl-1.5 pr-3.5 py-1 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
+              className="md:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 rounded-lg"
+              onClick={() => setMobileMenuOpen(true)}
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-lg font-bold text-white">
-                {initials}
-              </span>
-              <span className="max-w-[200px] truncate">{displayName}</span>
-              <svg className={`h-5 w-5 text-slate-400 transition ${dropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
+            <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{resolvedTitle}</h1>
+          </div>
 
-            {/* Dropdown */}
-            {dropdownOpen && (
-              <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-slate-200 bg-white py-1.5 shadow-lg z-50">
-                <div className="px-4 py-2.5 border-b border-slate-100">
-                  <p className="text-lg font-medium text-slate-900 truncate">{displayName}</p>
-                  {firstName && <p className="text-lg text-slate-500 truncate">{userEmail}</p>}
-                </div>
-                <button
-                  type="button"
-                  onClick={openProfile}
-                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-lg text-slate-700 hover:bg-slate-50 transition"
-                >
-                  <svg className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          <div className="flex items-center gap-4">
+            {mounted && (
+              <button
+                type="button"
+                className="rounded-full p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition"
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              >
+                {theme === "dark" ? (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
-                  Profile
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-lg text-red-600 hover:bg-red-50 transition"
-                >
-                  <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                ) : (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                   </svg>
-                  Logout
-                </button>
-              </div>
+                )}
+              </button>
             )}
+
+            {/* User menu */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => setDropdownOpen(prev => !prev)}
+                className="inline-flex items-center gap-2.5 rounded-full border border-slate-200 bg-white pl-1.5 pr-3.5 py-1 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-lg font-bold text-white">
+                  {initials}
+                </span>
+                <span className="max-w-[200px] truncate">{displayName}</span>
+                <svg className={`h-5 w-5 text-slate-400 transition ${dropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* Dropdown */}
+              {dropdownOpen && (
+                <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-1.5 shadow-lg z-50">
+                  <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                    <p className="text-lg font-medium text-slate-900 dark:text-slate-100 truncate">{displayName}</p>
+                    {firstName && <p className="text-lg text-slate-500 dark:text-slate-400 truncate">{userEmail}</p>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openProfile}
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                  >
+                    <svg className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    Profile
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-lg text-red-600 hover:bg-red-50 transition"
+                  >
+                    <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
+
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          <div className="fixed inset-0 bg-slate-900/40 transition-opacity dark:bg-black/60" onClick={() => setMobileMenuOpen(false)} />
+          <div className="relative flex w-64 flex-col bg-white dark:bg-slate-900 shadow-xl h-full transform transition-transform">
+            <div className="flex h-16 items-center justify-between px-6 border-b border-slate-200 dark:border-slate-800">
+              <span className="text-xl font-semibold text-slate-900 dark:text-slate-100">Study Planner</span>
+              <button type="button" onClick={() => setMobileMenuOpen(false)} className="p-2 -mr-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 rounded-full">
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
+              {navigationItems.map((item) => {
+                const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`block rounded-lg px-4 py-3 text-lg font-medium transition ${isActive ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
+      )}
 
       {/* Profile Modal */}
       {profileOpen && (
