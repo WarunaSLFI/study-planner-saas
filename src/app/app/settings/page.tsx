@@ -69,15 +69,15 @@ function ResetModal({ isOpen, onClose, onConfirm }: {
           value={confirmText}
           onChange={(e) => setConfirmText(e.target.value)}
           placeholder="Type RESET"
-          className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100"
-          autoFocus
-        />
+          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100"
+ autoFocus
+ />
         <div className="mt-5 flex items-center justify-end gap-3">
           <button
             type="button"
             onClick={handleClose}
             className="rounded-xl border border-slate-300 px-4 py-2 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
-          >
+ >
             Cancel
           </button>
           <button
@@ -85,7 +85,7 @@ function ResetModal({ isOpen, onClose, onConfirm }: {
             onClick={handleConfirm}
             disabled={!isMatch}
             className="rounded-xl bg-red-600 px-4 py-2 text-lg font-semibold text-white transition hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
+ >
             Delete Everything
           </button>
         </div>
@@ -201,13 +201,13 @@ export default function SettingsPage() {
           <button
             onClick={handleExport}
             className="rounded-lg bg-slate-900 px-4 py-2 text-lg font-medium text-white transition-colors hover:bg-slate-800"
-          >
+ >
             Export Data
           </button>
           <button
             onClick={() => setIsResetModalOpen(true)}
             className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-lg font-medium text-red-600 transition-colors hover:bg-red-100 hover:text-red-700"
-          >
+ >
             Reset All Data
           </button>
           {resetSuccess && (
@@ -235,7 +235,7 @@ export default function SettingsPage() {
                 accept=".json,application/json"
                 onChange={handleFileUpload}
                 className="hidden"
-              />
+ />
             </label>
           </div>
 
@@ -246,18 +246,18 @@ export default function SettingsPage() {
             <div className="h-px flex-1 bg-slate-200" />
           </div>
           <textarea
-            className="mt-3 block w-full rounded-lg border border-slate-300 px-3 py-2 text-lg text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            rows={5}
-            placeholder='{"subjects": [...], "assignments": [...], "activity": [...]}'
-            value={importJson}
-            onChange={(e) => setImportJson(e.target.value)}
+            className="mt-3 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+ rows={5}
+ placeholder='{"subjects": [...], "assignments": [...], "activity": [...]}'
+ value={importJson}
+ onChange={(e) => setImportJson(e.target.value)}
           />
           <div className="mt-3 flex items-center gap-4">
             <button
               onClick={handleImportText}
               disabled={!importJson.trim()}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-lg font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
-            >
+ >
               Import
             </button>
             {importStatus === "success" && (
@@ -293,8 +293,8 @@ export default function SettingsPage() {
             <select
               value={prefs.defaultAssignmentSort}
               onChange={(e) => updatePref("defaultAssignmentSort", e.target.value as Preferences["defaultAssignmentSort"])}
-              className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-            >
+              className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+ >
               <option value="dueDateAsc">Due Date (Earliest First)</option>
               <option value="dueDateDesc">Due Date (Latest First)</option>
               <option value="createdAtDesc">Newest First</option>
@@ -307,8 +307,8 @@ export default function SettingsPage() {
             <select
               value={prefs.dateDisplayFormat}
               onChange={(e) => updatePref("dateDisplayFormat", e.target.value as Preferences["dateDisplayFormat"])}
-              className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-            >
+              className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+ >
               <option value="Readable">Readable (e.g. 21 Feb 2026)</option>
               <option value="ISO">ISO (e.g. 2026-02-21)</option>
             </select>
@@ -327,7 +327,7 @@ export default function SettingsPage() {
               checked={prefs.hideCompletedByDefault}
               onChange={(e) => updatePref("hideCompletedByDefault", e.target.checked)}
               className="h-5 w-5 shrink-0 rounded border-slate-300 text-slate-900 focus:ring-slate-500 cursor-pointer"
-            />
+ />
           </label>
 
           {/* Week starts on Monday */}
@@ -343,7 +343,7 @@ export default function SettingsPage() {
               checked={prefs.weekStartsOnMonday}
               onChange={(e) => updatePref("weekStartsOnMonday", e.target.checked)}
               className="h-5 w-5 shrink-0 rounded border-slate-300 text-slate-900 focus:ring-slate-500 cursor-pointer"
-            />
+ />
           </label>
         </div>
       </section>

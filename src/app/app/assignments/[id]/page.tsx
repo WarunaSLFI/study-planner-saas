@@ -26,7 +26,7 @@ export default function AssignmentDetailPage() {
         <Link
           href="/app/tasks"
           className="mt-6 inline-flex rounded-lg border border-slate-300 px-3 py-1.5 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
-        >
+ >
           Back to Assignments
         </Link>
       </section>
@@ -46,14 +46,14 @@ export default function AssignmentDetailPage() {
             <Link
               href="/app/tasks"
               className="inline-flex rounded-lg border border-slate-300 px-3 py-1.5 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
-            >
+ >
               Back to Assignments
             </Link>
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
               className="rounded-lg border border-slate-300 px-3 py-1.5 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
-            >
+ >
               Edit
             </button>
           </div>
@@ -78,7 +78,7 @@ export default function AssignmentDetailPage() {
             <p className="text-lg font-medium text-slate-600">Status</p>
             <span
               className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-lg font-semibold ring-1 ring-inset ${statusBadgeStyles[getAssignmentStatus(assignment.dueDate, assignment.isCompleted)]}`}
-            >
+ >
               {getAssignmentStatus(assignment.dueDate, assignment.isCompleted)}
             </span>
           </div>

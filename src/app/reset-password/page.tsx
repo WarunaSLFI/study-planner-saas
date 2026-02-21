@@ -86,8 +86,8 @@ export default function ResetPasswordPage() {
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="••••••••"
                                         minLength={6}
-                                        className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-                                    />
+                                        className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+ />
                                 </label>
 
                                 <label className="block">
@@ -99,15 +99,15 @@ export default function ResetPasswordPage() {
                                         onChange={(e) => setConfirmPassword(e.target.value)}
                                         placeholder="••••••••"
                                         minLength={6}
-                                        className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-                                    />
+                                        className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+ />
                                 </label>
 
                                 <button
                                     type="submit"
                                     disabled={loading}
                                     className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-lg font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
-                                >
+ >
                                     {loading ? "Updating…" : "Update Password"}
                                 </button>
                             </form>

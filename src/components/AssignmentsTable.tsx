@@ -24,10 +24,10 @@ type AssignmentsTableProps = {
 };
 
 export const statusBadgeStyles: Record<AssignmentStatus, string> = {
-  Upcoming: "bg-blue-50 text-blue-700 ring-blue-200",
-  "Due Soon": "bg-yellow-100 text-yellow-700 ring-yellow-200",
-  Overdue: "bg-rose-50 text-rose-700 ring-rose-200",
-  Completed: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  Upcoming: "bg-blue-50 text-blue-700 ring-blue-200   ",
+  "Due Soon": "bg-yellow-100 text-yellow-700 ring-yellow-200   ",
+  Overdue: "bg-rose-50 text-rose-700 ring-rose-200   ",
+  Completed: "bg-emerald-50 text-emerald-700 ring-emerald-200   ",
 };
 
 import { getAssignmentStatus } from "@/lib/assignmentStatus";
@@ -83,7 +83,7 @@ export default function AssignmentsTable({ assignments, onEdit, onDelete, onTogg
                           {assignment.subject}
                         </span>
                         {subjectCode && subjectCode.trim() !== "" && subjectCode !== "UNKNOWN" && (
-                          <span className="text-lg text-gray-500">
+                          <span className="text-lg text-slate-500">
                             {subjectCode}
                           </span>
                         )}
@@ -95,7 +95,7 @@ export default function AssignmentsTable({ assignments, onEdit, onDelete, onTogg
                     <td className="px-3 py-4 text-lg text-slate-700">
                       <span
                         className={`inline-flex rounded-md px-2.5 py-1 text-lg font-semibold ring-1 ring-inset ${statusBadgeStyles[getAssignmentStatus(assignment.dueDate, assignment.isCompleted)]}`}
-                      >
+ >
                         {getAssignmentStatus(assignment.dueDate, assignment.isCompleted)}
                       </span>
                     </td>
@@ -104,31 +104,28 @@ export default function AssignmentsTable({ assignments, onEdit, onDelete, onTogg
                         <Link
                           href={`/app/assignments/${assignment.id}`}
                           className="rounded-lg border border-slate-300 px-3 py-1.5 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
-                        >
+ >
                           View
                         </Link>
                         <button
                           type="button"
                           onClick={() => onEdit?.(assignment)}
                           className="rounded-lg border border-slate-300 px-3 py-1.5 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
-                        >
+ >
                           Edit
                         </button>
                         <button
                           type="button"
                           onClick={() => onDelete?.(assignment.id)}
                           className="rounded-lg border border-rose-200 px-3 py-1.5 text-lg font-medium text-rose-600 transition hover:bg-rose-50"
-                        >
+ >
                           Delete
                         </button>
                         <button
                           type="button"
                           onClick={() => onToggleCompletion?.(assignment.id)}
-                          className={`rounded-md px-3 py-1 text-lg font-medium transition ${assignment.isCompleted
-                            ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                            : "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100"
-                            }`}
-                        >
+                          className={`rounded-md px-3 py-1 text-lg font-medium transition ${assignment.isCompleted ? "bg-slate-100 text-slate-700 hover:bg-slate-200 " : "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100 " }`}
+ >
                           {assignment.isCompleted ? "Undo" : "Mark Complete"}
                         </button>
                       </div>

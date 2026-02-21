@@ -106,12 +106,12 @@ export default function DashboardPage() {
                     const currentStatus = getAssignmentStatus(assignment.dueDate, assignment.isCompleted);
                     const statusColorClass =
                       currentStatus === "Overdue"
-                        ? "bg-red-100 text-red-700"
+                        ? "bg-red-100 text-red-700  "
                         : currentStatus === "Due Soon"
-                          ? "bg-yellow-100 text-yellow-700"
+                          ? "bg-yellow-100 text-yellow-700  "
                           : currentStatus === "Completed"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-blue-100 text-blue-700";
+                            ? "bg-green-100 text-green-700  "
+                            : "bg-blue-100 text-blue-700  ";
 
                     return (
                       <div key={assignment.id} className="py-3 flex justify-between items-start gap-4">
