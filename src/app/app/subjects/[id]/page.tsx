@@ -82,7 +82,7 @@ export default function SubjectDetailsPage() {
                     <div>
                         <Link
                             href="/app/courses"
-                            className="text-sm font-medium text-slate-500 transition hover:text-slate-700"
+                            className="text-lg font-medium text-slate-500 transition hover:text-slate-700"
                         >
                             &larr; All Subjects
                         </Link>

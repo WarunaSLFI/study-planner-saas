@@ -199,7 +199,7 @@ function LoginForm() {
                                         type="button"
                                         onClick={handleResendConfirmation}
                                         disabled={resending}
-                                        className="mt-2 block w-full text-left text-sm font-medium text-rose-800 underline hover:no-underline disabled:opacity-50"
+                                        className="mt-2 block w-full text-left text-lg font-medium text-rose-800 underline hover:no-underline disabled:opacity-50"
                                     >
                                         {resending ? "Sending…" : "Resend confirmation email"}
                                     </button>

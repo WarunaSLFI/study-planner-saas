@@ -607,7 +607,7 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
           <button
             type="button"
             onClick={clearError}
-            className="shrink-0 rounded-lg border border-rose-300 px-3 py-1 text-sm font-medium text-rose-600 transition hover:bg-rose-100"
+            className="shrink-0 rounded-lg border border-rose-300 px-3 py-1 text-lg font-medium text-rose-600 transition hover:bg-rose-100"
           >
             Dismiss
           </button>

@@ -111,7 +111,7 @@ export default function Header({ title }: HeaderProps) {
               onClick={() => setDropdownOpen(prev => !prev)}
               className="inline-flex items-center gap-2.5 rounded-full border border-slate-200 bg-white pl-1.5 pr-3.5 py-1 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-lg font-bold text-white">
                 {initials}
               </span>
               <span className="max-w-[200px] truncate">{displayName}</span>
@@ -125,7 +125,7 @@ export default function Header({ title }: HeaderProps) {
               <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-slate-200 bg-white py-1.5 shadow-lg z-50">
                 <div className="px-4 py-2.5 border-b border-slate-100">
                   <p className="text-lg font-medium text-slate-900 truncate">{displayName}</p>
-                  {firstName && <p className="text-sm text-slate-500 truncate">{userEmail}</p>}
+                  {firstName && <p className="text-lg text-slate-500 truncate">{userEmail}</p>}
                 </div>
                 <button
                   type="button"

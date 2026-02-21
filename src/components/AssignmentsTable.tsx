@@ -72,7 +72,7 @@ export default function AssignmentsTable({ assignments, onEdit, onDelete, onTogg
                           {assignment.subject}
                         </span>
                         {subjectCode && subjectCode.trim() !== "" && subjectCode !== "UNKNOWN" && (
-                          <span className="text-xs text-gray-500">
+                          <span className="text-lg text-gray-500">
                             {subjectCode}
                           </span>
                         )}
@@ -113,7 +113,7 @@ export default function AssignmentsTable({ assignments, onEdit, onDelete, onTogg
                         <button
                           type="button"
                           onClick={() => onToggleCompletion?.(assignment.id)}
-                          className={`rounded-md px-3 py-1 text-sm font-medium transition ${assignment.isCompleted
+                          className={`rounded-md px-3 py-1 text-lg font-medium transition ${assignment.isCompleted
                             ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
                             : "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100"
                             }`}

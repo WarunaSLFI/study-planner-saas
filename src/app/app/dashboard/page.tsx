@@ -82,7 +82,7 @@ export default function DashboardPage() {
           ) : (
             groupedAssignments.map((group) => (
               <div key={group.date} className="flex flex-col gap-3">
-                <h3 className="text-lg font-bold text-slate-900 border-b border-slate-200 pb-2">
+                <h3 className="text-lg font-medium text-slate-900 border-b border-slate-200 pb-2">
                   {formatDueDateHeading(group.date)}
                 </h3>
                 <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
@@ -113,7 +113,7 @@ export default function DashboardPage() {
                           <span className="text-lg font-semibold text-slate-900 leading-tight">
                             {subjectDisplay}
                           </span>
-                          <span className={`px-2.5 py-1 text-xs font-semibold rounded-md whitespace-nowrap ${statusColorClass}`}>
+                          <span className={`px-2.5 py-1 text-lg font-semibold rounded-md whitespace-nowrap ${statusColorClass}`}>
                             {currentStatus}
                           </span>
                         </div>

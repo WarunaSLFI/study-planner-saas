@@ -75,7 +75,7 @@ function ImportAssignmentsModal({ isOpen, onClose, onImportBulk }: ImportAssignm
           <div className="flex-1 overflow-y-auto">
             <p className="mb-2 text-slate-600">Copy and paste your assignments list from your university website directly into the box below. We will attempt to automatically extract the Subject, Title, and Due Date.</p>
             <textarea
-              className="w-full h-64 rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 resize-none"
+              className="w-full h-64 rounded-xl border border-slate-300 px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 resize-none"
               placeholder="Paste your assignment list here..."
               value={pastedText}
               onChange={(e) => setPastedText(e.target.value)}
@@ -97,11 +97,11 @@ function ImportAssignmentsModal({ isOpen, onClose, onImportBulk }: ImportAssignm
               <table className="min-w-full divide-y divide-slate-200 text-left">
                 <thead className="bg-slate-50 sticky top-0">
                   <tr>
-                    <th className="px-3 py-3 text-sm font-semibold text-slate-900">Import</th>
-                    <th className="px-3 py-3 text-sm font-semibold text-slate-900">Title</th>
-                    <th className="px-3 py-3 text-sm font-semibold text-slate-900">Subject Name</th>
-                    <th className="px-3 py-3 text-sm font-semibold text-slate-900">Subject Code</th>
-                    <th className="px-3 py-3 text-sm font-semibold text-slate-900">Due Date</th>
+                    <th className="px-3 py-3 text-lg font-semibold text-slate-900">Import</th>
+                    <th className="px-3 py-3 text-lg font-semibold text-slate-900">Title</th>
+                    <th className="px-3 py-3 text-lg font-semibold text-slate-900">Subject Name</th>
+                    <th className="px-3 py-3 text-lg font-semibold text-slate-900">Subject Code</th>
+                    <th className="px-3 py-3 text-lg font-semibold text-slate-900">Due Date</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
@@ -127,7 +127,7 @@ function ImportAssignmentsModal({ isOpen, onClose, onImportBulk }: ImportAssignm
                             type="text"
                             value={row.title}
                             onChange={(e) => setParsedRows((prev) => prev.map((r) => r.id === row.id ? { ...r, title: e.target.value } : r))}
-                            className="w-full border-0 bg-transparent p-0 text-sm focus:ring-0 font-medium"
+                            className="w-full border-0 bg-transparent p-0 text-lg focus:ring-0 font-medium"
                           />
                         </td>
                         <td className="p-3">
@@ -136,7 +136,7 @@ function ImportAssignmentsModal({ isOpen, onClose, onImportBulk }: ImportAssignm
                             value={row.subjectName || ""}
                             placeholder="Unknown Name"
                             onChange={(e) => setParsedRows((prev) => prev.map((r) => r.id === row.id ? { ...r, subjectName: e.target.value } : r))}
-                            className="w-full border-0 bg-transparent p-0 text-sm focus:ring-0"
+                            className="w-full border-0 bg-transparent p-0 text-lg focus:ring-0"
                           />
                         </td>
                         <td className="p-3">
@@ -145,7 +145,7 @@ function ImportAssignmentsModal({ isOpen, onClose, onImportBulk }: ImportAssignm
                             value={row.subjectCode || ""}
                             placeholder="No code"
                             onChange={(e) => setParsedRows((prev) => prev.map((r) => r.id === row.id ? { ...r, subjectCode: e.target.value } : r))}
-                            className="w-full border-0 bg-transparent p-0 text-sm font-mono focus:ring-0 text-slate-500"
+                            className="w-full border-0 bg-transparent p-0 text-lg font-mono focus:ring-0 text-slate-500"
                           />
                         </td>
                         <td className="p-3">
@@ -153,7 +153,7 @@ function ImportAssignmentsModal({ isOpen, onClose, onImportBulk }: ImportAssignm
                             type="date"
                             value={row.dueDate || ""}
                             onChange={(e) => setParsedRows((prev) => prev.map((r) => r.id === row.id ? { ...r, dueDate: e.target.value } : r))}
-                            className="w-full border-0 bg-transparent p-0 text-sm focus:ring-0"
+                            className="w-full border-0 bg-transparent p-0 text-lg focus:ring-0"
                           />
                         </td>
                       </tr>
