@@ -1,28 +1,73 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useAppData } from "@/app/app/providers/AppDataProvider";
 import { parseSubjectsFromText } from "@/lib/parseSubjects";
+import type { SubjectItem } from "@/app/app/providers/AppDataProvider";
 
-type AddSubjectModalProps = {
+function highlightText(text: string, query: string): ReactNode {
+  if (!query) return text;
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+  const parts = text.split(regex);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    regex.test(part)
+      ? <mark key={i} className="rounded bg-yellow-100 px-0.5 text-slate-900">{part}</mark>
+      : part
+  );
+}
+
+type SubjectModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onAddSubject: (name: string, code: string) => void;
+  onEditSubject?: (id: string, name: string, code: string) => { success: boolean; error?: string };
+  existingSubject?: SubjectItem | null;
 };
 
-function AddSubjectModal({ isOpen, onClose, onAddSubject }: AddSubjectModalProps) {
+function SubjectModal({ isOpen, onClose, onAddSubject, onEditSubject, existingSubject }: SubjectModalProps) {
   const [subjectName, setSubjectName] = useState("");
   const [subjectCode, setSubjectCode] = useState("");
+  const [error, setError] = useState("");
+
+  const isEditing = !!existingSubject;
+
+  // Sync form when modal opens or existingSubject changes
+  const [lastSubjectId, setLastSubjectId] = useState<string | null>(null);
+  if (isOpen && existingSubject && existingSubject.id !== lastSubjectId) {
+    setSubjectName(existingSubject.name);
+    setSubjectCode(existingSubject.code);
+    setError("");
+    setLastSubjectId(existingSubject.id);
+  } else if (isOpen && !existingSubject && lastSubjectId !== null) {
+    setSubjectName("");
+    setSubjectCode("");
+    setError("");
+    setLastSubjectId(null);
+  }
 
   const handleClose = () => {
     setSubjectName("");
     setSubjectCode("");
+    setError("");
+    setLastSubjectId(null);
     onClose();
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    onAddSubject(subjectName, subjectCode);
+    setError("");
+
+    if (isEditing && onEditSubject && existingSubject) {
+      const result = onEditSubject(existingSubject.id, subjectName, subjectCode);
+      if (!result.success) {
+        setError(result.error || "Failed to save.");
+        return;
+      }
+    } else {
+      onAddSubject(subjectName, subjectCode);
+    }
     handleClose();
   };
 
@@ -34,7 +79,9 @@ function AddSubjectModal({ isOpen, onClose, onAddSubject }: AddSubjectModalProps
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
       <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-900">Add Subject</h3>
+          <h3 className="text-lg font-semibold text-slate-900">
+            {isEditing ? "Edit Subject" : "Add Subject"}
+          </h3>
           <button
             type="button"
             onClick={handleClose}
@@ -45,6 +92,11 @@ function AddSubjectModal({ isOpen, onClose, onAddSubject }: AddSubjectModalProps
         </div>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          {error && (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+              {error}
+            </div>
+          )}
           <label className="block">
             <span className="mb-2 block text-lg font-medium text-slate-600">
               Subject Name
@@ -82,7 +134,7 @@ function AddSubjectModal({ isOpen, onClose, onAddSubject }: AddSubjectModalProps
               type="submit"
               className="rounded-xl bg-slate-900 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700"
             >
-              Add Subject
+              {isEditing ? "Save Changes" : "Add Subject"}
             </button>
           </div>
         </form>
@@ -258,9 +310,65 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
 }
 
 export default function SubjectsPage() {
-  const { subjects, addSubject, addSubjectsBulk } = useAppData();
+  const { subjects, assignments, addSubject, editSubject, deleteSubject, addSubjectsBulk } = useAppData();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<SubjectItem | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isEditable = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+
+      if (e.key === "/" && !isEditable) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+
+      if (e.key === "Escape") {
+        setSearchQuery("");
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const filteredSubjects = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return subjects;
+    return subjects.filter(
+      s => s.name.toLowerCase().includes(query) || s.code.toLowerCase().includes(query)
+    );
+  }, [subjects, searchQuery]);
+
+  const getAssignmentCount = (subjectId: string) =>
+    assignments.filter(a => a.subjectId === subjectId).length;
+
+  const handleEditClick = (subject: SubjectItem) => {
+    setEditingSubject(subject);
+    setIsAddModalOpen(true);
+  };
+
+  const handleDeleteClick = (subject: SubjectItem) => {
+    const count = getAssignmentCount(subject.id);
+    const warning = count > 0
+      ? `This will also delete ${count} assignment${count > 1 ? "s" : ""} linked to this subject.`
+      : "";
+    const confirmed = confirm(
+      `Are you sure you want to delete "${subject.name}"?\n${warning}`
+    );
+    if (confirmed) {
+      deleteSubject(subject.id);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsAddModalOpen(false);
+    setEditingSubject(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -277,7 +385,10 @@ export default function SubjectsPage() {
             </button>
             <button
               type="button"
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={() => {
+                setEditingSubject(null);
+                setIsAddModalOpen(true);
+              }}
               className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700"
             >
               Add Subject
@@ -287,7 +398,23 @@ export default function SubjectsPage() {
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="overflow-x-auto">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <label className="block flex-1 max-w-md">
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search subjects by name or code…  ( / )"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+            />
+          </label>
+          <span className="text-sm text-slate-500 whitespace-nowrap">
+            Showing {filteredSubjects.length} of {subjects.length} subjects
+          </span>
+        </div>
+
+        <div className="mt-4 overflow-x-auto">
           <table className="min-w-full text-left">
             <thead className="border-b border-slate-200">
               <tr>
@@ -297,52 +424,73 @@ export default function SubjectsPage() {
                 <th className="px-3 py-3 text-lg font-semibold text-slate-600">
                   Subject Code
                 </th>
+                <th className="px-3 py-3 text-lg font-semibold text-slate-600">
+                  Assignments
+                </th>
                 <th className="px-3 py-3 text-lg font-semibold text-slate-600 text-right">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {subjects.map((subject) => (
-                <tr key={subject.id}>
-                  <td className="px-3 py-4 text-lg font-medium text-slate-900">
-                    {subject.name}
-                  </td>
-                  <td className="px-3 py-4 text-lg font-medium text-slate-700 font-mono">
-                    {subject.code}
-                  </td>
-                  <td className="px-3 py-4 text-lg flex justify-end">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {subjects.length === 0 && (
+              {filteredSubjects.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="p-4 text-center text-slate-500">No subjects added yet.</td>
+                  <td colSpan={4} className="px-3 py-8 text-center text-lg text-slate-500">
+                    {searchQuery.trim() ? "No subjects match your search." : "No subjects added yet."}
+                  </td>
                 </tr>
-              )}
+              ) : (
+                filteredSubjects.map((subject) => {
+                  const count = getAssignmentCount(subject.id);
+                  return (
+                    <tr key={subject.id}>
+                      <td className="px-3 py-4 text-lg font-medium text-slate-900">
+                        <Link
+                          href={`/app/subjects/${subject.id}`}
+                          className="hover:underline decoration-slate-300 underline-offset-2"
+                        >
+                          {highlightText(subject.name, searchQuery.trim())}
+                        </Link>
+                      </td>
+                      <td className="px-3 py-4 text-lg font-medium text-slate-700 font-mono">
+                        {highlightText(subject.code, searchQuery.trim())}
+                      </td>
+                      <td className="px-3 py-4 text-lg text-slate-500">
+                        {count}
+                      </td>
+                      <td className="px-3 py-4 text-lg flex justify-end">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEditClick(subject)}
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteClick(subject)}
+                            className="rounded-lg border border-rose-200 px-3 py-1.5 text-lg font-medium text-rose-600 transition hover:bg-rose-50"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }))
+              }
             </tbody>
           </table>
         </div>
       </section>
 
-      <AddSubjectModal
+      <SubjectModal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={handleCloseModal}
         onAddSubject={addSubject}
+        onEditSubject={editSubject}
+        existingSubject={editingSubject}
       />
       <ImportSubjectsModal
         isOpen={isImportModalOpen}

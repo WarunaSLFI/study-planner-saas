@@ -19,6 +19,7 @@ export type AssignmentItem = {
 type AssignmentsTableProps = {
   assignments: AssignmentItem[];
   onEdit?: (assignment: AssignmentItem) => void;
+  onDelete?: (id: string) => void;
   onToggleCompletion?: (id: string) => void;
 };
 
@@ -31,7 +32,7 @@ export const statusBadgeStyles: Record<AssignmentStatus, string> = {
 
 import { getAssignmentStatus } from "@/lib/assignmentStatus";
 
-export default function AssignmentsTable({ assignments, onEdit, onToggleCompletion }: AssignmentsTableProps) {
+export default function AssignmentsTable({ assignments, onEdit, onDelete, onToggleCompletion }: AssignmentsTableProps) {
   const { subjects } = useAppData();
 
   return (
@@ -101,6 +102,13 @@ export default function AssignmentsTable({ assignments, onEdit, onToggleCompleti
                           className="rounded-lg border border-slate-300 px-3 py-1.5 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
                         >
                           Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDelete?.(assignment.id)}
+                          className="rounded-lg border border-rose-200 px-3 py-1.5 text-lg font-medium text-rose-600 transition hover:bg-rose-50"
+                        >
+                          Delete
                         </button>
                         <button
                           type="button"

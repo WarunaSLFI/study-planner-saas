@@ -13,7 +13,9 @@ import AssignmentsTable, {
 import { getAssignmentStatus } from "@/lib/assignmentStatus";
 import { parseAssignmentsFromText } from "@/lib/parseAssignments";
 
-type StatusFilter = "All" | AssignmentStatus;
+type StatusFilter = "All" | "Active" | "Completed";
+type TimeFilter = "All" | "Overdue" | "Due Soon" | "Upcoming";
+type SortBy = "dueDateAsc" | "dueDateDesc" | "createdAtDesc";
 
 type ImportAssignmentsModalProps = {
   isOpen: boolean;
@@ -184,9 +186,11 @@ function ImportAssignmentsModal({ isOpen, onClose, onImportBulk }: ImportAssignm
 }
 
 export default function TasksPage() {
-  const { subjects, assignments, addAssignment, updateAssignment, toggleAssignmentCompletion, addAssignmentsBulk } = useAppData();
+  const { subjects, assignments, addAssignment, updateAssignment, deleteAssignment, toggleAssignmentCompletion, addAssignmentsBulk } = useAppData();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("All");
+  const [sortBy, setSortBy] = useState<SortBy>("dueDateAsc");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<AssignmentItem | null>(null);
@@ -205,39 +209,42 @@ export default function TasksPage() {
     const query = searchQuery.trim().toLowerCase();
 
     return assignments.filter((assignment) => {
-      const matchesSearch =
+      // Search: title, subject name, subject code
+      const subjectCode = subjects.find(s => s.id === assignment.subjectId)?.code || "";
+      const matchesSearch = !query ||
         assignment.title.toLowerCase().includes(query) ||
-        assignment.subject.toLowerCase().includes(query);
-      const matchesStatus =
-        statusFilter === "All" || getAssignmentStatus(assignment.dueDate, assignment.isCompleted) === statusFilter;
+        assignment.subject.toLowerCase().includes(query) ||
+        subjectCode.toLowerCase().includes(query);
 
-      return matchesSearch && matchesStatus;
+      // Status filter: Active vs Completed
+      const matchesStatus =
+        statusFilter === "All" ||
+        (statusFilter === "Completed" && assignment.isCompleted) ||
+        (statusFilter === "Active" && !assignment.isCompleted);
+
+      // Time filter: Overdue / Due Soon / Upcoming
+      const computedStatus = getAssignmentStatus(assignment.dueDate, assignment.isCompleted);
+      const matchesTime =
+        timeFilter === "All" || computedStatus === timeFilter;
+
+      return matchesSearch && matchesStatus && matchesTime;
     });
-  }, [assignments, searchQuery, statusFilter]);
+  }, [assignments, subjects, searchQuery, statusFilter, timeFilter]);
 
   const sortedAssignments = useMemo(() => {
-    const priorityMap: Record<AssignmentStatus, number> = {
-      Overdue: 0,
-      "Due Soon": 1,
-      Upcoming: 2,
-      Completed: 3,
-    };
-
     return [...filteredAssignments].sort((a, b) => {
-      const statusA = getAssignmentStatus(a.dueDate, a.isCompleted);
-      const statusB = getAssignmentStatus(b.dueDate, b.isCompleted);
-
-      const priorityA = priorityMap[statusA];
-      const priorityB = priorityMap[statusB];
-
-      if (priorityA !== priorityB) {
-        return priorityA - priorityB;
+      switch (sortBy) {
+        case "dueDateAsc":
+          return (a.dueDate || "9999-12-31").localeCompare(b.dueDate || "9999-12-31");
+        case "dueDateDesc":
+          return (b.dueDate || "0000-01-01").localeCompare(a.dueDate || "0000-01-01");
+        case "createdAtDesc":
+          return (b.createdAt || "").localeCompare(a.createdAt || "");
+        default:
+          return 0;
       }
-
-      // If priorities match (e.g., both Upcoming), sort by due date ascending
-      return a.dueDate.localeCompare(b.dueDate);
     });
-  }, [filteredAssignments]);
+  }, [filteredAssignments, sortBy]);
 
   const handleAddAssignment = (assignment: NewAssignment) => {
     addAssignment(assignment);
@@ -269,7 +276,7 @@ export default function TasksPage() {
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           <label className="block">
             <span className="mb-2 block text-lg font-medium text-slate-600">
               Search
@@ -278,7 +285,7 @@ export default function TasksPage() {
               type="text"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search by title or subject"
+              placeholder="Title, subject, or code"
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
             />
           </label>
@@ -295,16 +302,60 @@ export default function TasksPage() {
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
             >
               <option value="All">All</option>
-              <option value="Upcoming">Upcoming</option>
-              <option value="Due Soon">Due Soon</option>
-              <option value="Overdue">Overdue</option>
+              <option value="Active">Active</option>
               <option value="Completed">Completed</option>
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="mb-2 block text-lg font-medium text-slate-600">
+              Time
+            </span>
+            <select
+              value={timeFilter}
+              onChange={(event) =>
+                setTimeFilter(event.target.value as TimeFilter)
+              }
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+            >
+              <option value="All">All</option>
+              <option value="Overdue">Overdue</option>
+              <option value="Due Soon">Due Soon</option>
+              <option value="Upcoming">Upcoming</option>
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="mb-2 block text-lg font-medium text-slate-600">
+              Sort By
+            </span>
+            <select
+              value={sortBy}
+              onChange={(event) =>
+                setSortBy(event.target.value as SortBy)
+              }
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+            >
+              <option value="dueDateAsc">Due Date (Earliest)</option>
+              <option value="dueDateDesc">Due Date (Latest)</option>
+              <option value="createdAtDesc">Newest First</option>
             </select>
           </label>
         </div>
       </section>
 
-      <AssignmentsTable assignments={sortedAssignments} onEdit={handleEditClick} onToggleCompletion={(id) => toggleAssignmentCompletion(id)} />
+      <AssignmentsTable
+        assignments={sortedAssignments}
+        onEdit={handleEditClick}
+        onDelete={(id) => {
+          const assignment = assignments.find(a => a.id === id);
+          const confirmed = confirm(
+            `Are you sure you want to delete "${assignment?.title || "this assignment"}"?`
+          );
+          if (confirmed) deleteAssignment(id);
+        }}
+        onToggleCompletion={(id) => toggleAssignmentCompletion(id)}
+      />
 
       <AssignmentModal
         isOpen={isModalOpen}

@@ -48,10 +48,13 @@ type AppDataContextValue = {
   assignments: AssignmentItem[];
   activity: ActivityItem[];
   addSubject: (name: string, code: string) => void;
+  editSubject: (id: string, name: string, code: string) => { success: boolean; error?: string };
+  deleteSubject: (id: string) => void;
   addSubjectsBulk: (rows: import("@/lib/parseSubjects").ParsedSubjectRow[]) => { addedCount: number; skippedCount: number };
   addAssignmentsBulk: (parsedAssignments: import("@/lib/parseAssignments").ParsedAssignmentRow[]) => void;
   addAssignment: (assignmentData: AddAssignmentInput) => void;
   updateAssignment: (id: string, updatedData: Partial<AssignmentItem>) => void;
+  deleteAssignment: (id: string) => void;
   toggleAssignmentCompletion: (id: string) => void;
   resetData: () => void;
   exportData: () => string;
@@ -222,6 +225,47 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
           createdAt: new Date().toISOString()
         }
       ]
+    }));
+  };
+
+  const editSubject = (id: string, name: string, code: string): { success: boolean; error?: string } => {
+    const trimmedName = name.trim();
+    const trimmedCode = code.trim();
+    if (!trimmedName || !trimmedCode) return { success: false, error: "Name and code are required." };
+
+    // Check for duplicate code (case-insensitive) among OTHER subjects
+    const duplicate = plannerData.subjects.find(
+      s => s.id !== id && s.subjectCode.trim().toUpperCase() === trimmedCode.toUpperCase()
+    );
+    if (duplicate) {
+      return { success: false, error: `Subject code "${trimmedCode}" is already used by "${duplicate.subjectName}".` };
+    }
+
+    setPlannerData(prev => ({
+      ...prev,
+      subjects: prev.subjects.map(s =>
+        s.id === id
+          ? { ...s, subjectName: trimmedName, subjectCode: trimmedCode }
+          : s
+      )
+    }));
+    return { success: true };
+  };
+
+  const deleteSubject = (id: string) => {
+    // Cascade delete: remove subject + all its assignments
+    setPlannerData(prev => ({
+      ...prev,
+      subjects: prev.subjects.filter(s => s.id !== id),
+      assignments: prev.assignments.filter(a => a.subjectId !== id)
+    }));
+    // Remove related activity items
+    setActivity(prev => prev.filter(a => {
+      // Remove activity for assignments belonging to this subject
+      const relatedAssignmentIds = new Set(
+        plannerData.assignments.filter(asg => asg.subjectId === id).map(asg => asg.id)
+      );
+      return !relatedAssignmentIds.has(a.assignmentId);
     }));
   };
 
@@ -454,6 +498,14 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
     }));
   };
 
+  const deleteAssignment = (id: string) => {
+    setPlannerData(prev => ({
+      ...prev,
+      assignments: prev.assignments.filter(a => a.id !== id)
+    }));
+    setActivity(prev => prev.filter(a => a.assignmentId !== id));
+  };
+
   const toggleAssignmentCompletion = (id: string) => {
     let affectedAssignmentTitle = "";
     let affectedSubjectName = "";
@@ -565,10 +617,13 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
     assignments,
     activity,
     addSubject,
+    editSubject,
+    deleteSubject,
     addSubjectsBulk,
     addAssignmentsBulk,
     addAssignment,
     updateAssignment,
+    deleteAssignment,
     toggleAssignmentCompletion,
     resetData,
     exportData,
