@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAppData } from "@/app/app/providers/AppDataProvider";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import StatCard from "@/components/StatCard";
 import AssignmentsTable from "@/components/AssignmentsTable";
 import AssignmentModal, { type NewAssignment } from "@/components/AssignmentModal";
@@ -17,6 +18,7 @@ export default function SubjectDetailsPage() {
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingAssignment, setEditingAssignment] = useState<AssignmentItem | null>(null);
+    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
     const subject = subjects.find(s => s.id === subjectId);
 
@@ -129,13 +131,7 @@ export default function SubjectDetailsPage() {
                 <AssignmentsTable
                     assignments={subjectAssignments}
                     onEdit={handleEditClick}
-                    onDelete={(id) => {
-                        const assignment = subjectAssignments.find(a => a.id === id);
-                        const confirmed = confirm(
-                            `Are you sure you want to delete "${assignment?.title || "this assignment"}"?`
-                        );
-                        if (confirmed) deleteAssignment(id);
-                    }}
+                    onDelete={(id) => setPendingDeleteId(id)}
                     onToggleCompletion={(id) => toggleAssignmentCompletion(id)}
                 />
             )}
@@ -147,6 +143,19 @@ export default function SubjectDetailsPage() {
                 onEdit={(id, updated) => updateAssignment(id, updated)}
                 existingAssignment={editingAssignment}
                 subjects={subjects}
+            />
+
+            <ConfirmDialog
+                isOpen={!!pendingDeleteId}
+                title="Delete Assignment"
+                message={`Are you sure you want to delete "${subjectAssignments.find(a => a.id === pendingDeleteId)?.title || "this assignment"}"?`}
+                confirmLabel="Delete"
+                variant="danger"
+                onConfirm={() => {
+                    if (pendingDeleteId) deleteAssignment(pendingDeleteId);
+                    setPendingDeleteId(null);
+                }}
+                onCancel={() => setPendingDeleteId(null)}
             />
         </div>
     );

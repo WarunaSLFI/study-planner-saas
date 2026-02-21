@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useAppData } from "@/app/app/providers/AppDataProvider";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import AssignmentModal, {
   type NewAssignment,
 } from "@/components/AssignmentModal";
@@ -194,6 +195,7 @@ export default function TasksPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<AssignmentItem | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const handleEditClick = (assignment: AssignmentItem) => {
     setEditingAssignment(assignment);
@@ -347,13 +349,7 @@ export default function TasksPage() {
       <AssignmentsTable
         assignments={sortedAssignments}
         onEdit={handleEditClick}
-        onDelete={(id) => {
-          const assignment = assignments.find(a => a.id === id);
-          const confirmed = confirm(
-            `Are you sure you want to delete "${assignment?.title || "this assignment"}"?`
-          );
-          if (confirmed) deleteAssignment(id);
-        }}
+        onDelete={(id) => setPendingDeleteId(id)}
         onToggleCompletion={(id) => toggleAssignmentCompletion(id)}
       />
 
@@ -370,6 +366,18 @@ export default function TasksPage() {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onImportBulk={addAssignmentsBulk}
+      />
+      <ConfirmDialog
+        isOpen={!!pendingDeleteId}
+        title="Delete Assignment"
+        message={`Are you sure you want to delete "${assignments.find(a => a.id === pendingDeleteId)?.title || "this assignment"}"?`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => {
+          if (pendingDeleteId) deleteAssignment(pendingDeleteId);
+          setPendingDeleteId(null);
+        }}
+        onCancel={() => setPendingDeleteId(null)}
       />
     </div>
   );

@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import AppDataProvider from "@/app/app/providers/AppDataProvider";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
+import ErrorBoundary from "@/components/ErrorBoundary";
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+};
 
 export default function AppLayout({
   children,
@@ -13,7 +19,9 @@ export default function AppLayout({
         <Sidebar />
         <div className="flex min-h-screen flex-col md:h-screen md:overflow-hidden">
           <Header />
-          <main className="flex-1 p-6 md:overflow-y-auto">{children}</main>
+          <main className="flex-1 p-6 md:overflow-y-auto">
+            <ErrorBoundary>{children}</ErrorBoundary>
+          </main>
         </div>
       </div>
     </AppDataProvider>

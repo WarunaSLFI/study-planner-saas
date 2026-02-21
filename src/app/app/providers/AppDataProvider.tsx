@@ -416,6 +416,8 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
         dueDate: assignment.due_date || "",
         status: getAssignmentStatus(assignment.due_date || "", newCompleted),
       }, ...prev].slice(0, 8));
+
+      flashSuccess(newCompleted ? "Marked as completed ✓" : "Marked as incomplete");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : (err as { message?: string })?.message || "Failed to toggle completion.";
       setGlobalError(message);

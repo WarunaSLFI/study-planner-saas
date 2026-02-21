@@ -3,6 +3,7 @@
 import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAppData } from "@/app/app/providers/AppDataProvider";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { parseSubjectsFromText } from "@/lib/parseSubjects";
 import type { SubjectItem } from "@/app/app/providers/AppDataProvider";
 
@@ -315,6 +316,7 @@ export default function SubjectsPage() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState<SubjectItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string; warning: string } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -357,12 +359,7 @@ export default function SubjectsPage() {
     const warning = count > 0
       ? `This will also delete ${count} assignment${count > 1 ? "s" : ""} linked to this subject.`
       : "";
-    const confirmed = confirm(
-      `Are you sure you want to delete "${subject.name}"?\n${warning}`
-    );
-    if (confirmed) {
-      deleteSubject(subject.id);
-    }
+    setPendingDelete({ id: subject.id, name: subject.name, warning });
   };
 
   const handleCloseModal = () => {
@@ -497,6 +494,18 @@ export default function SubjectsPage() {
         onClose={() => setIsImportModalOpen(false)}
         onImportBulk={addSubjectsBulk}
         existingSubjects={subjects}
+      />
+      <ConfirmDialog
+        isOpen={!!pendingDelete}
+        title="Delete Subject"
+        message={pendingDelete ? `Are you sure you want to delete "${pendingDelete.name}"?${pendingDelete.warning ? " " + pendingDelete.warning : ""}` : ""}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => {
+          if (pendingDelete) deleteSubject(pendingDelete.id);
+          setPendingDelete(null);
+        }}
+        onCancel={() => setPendingDelete(null)}
       />
     </div>
   );
