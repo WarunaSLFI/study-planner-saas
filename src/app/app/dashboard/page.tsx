@@ -92,7 +92,9 @@ export default function DashboardPage() {
                     let subjectDisplay = "Unknown subject";
                     if (subject) {
                       const hasValidCode = subject.code && subject.code.trim() !== "" && subject.code !== "UNKNOWN";
-                      subjectDisplay = hasValidCode ? `${subject.code} — ${subject.name}` : subject.name;
+                      subjectDisplay = hasValidCode ? `${subject.code} • ${subject.name} — ${assignment.title}` : `${subject.name} — ${assignment.title}`;
+                    } else {
+                      subjectDisplay = `Unknown Subject — ${assignment.title}`;
                     }
 
                     const currentStatus = getAssignmentStatus(assignment.dueDate, assignment.isCompleted);
@@ -109,14 +111,11 @@ export default function DashboardPage() {
                       <div key={assignment.id} className="p-4 flex flex-col gap-1.5">
                         <div className="flex justify-between items-start gap-4">
                           <span className="text-lg font-semibold text-slate-900 leading-tight">
-                            {assignment.title}
+                            {subjectDisplay}
                           </span>
                           <span className={`px-2.5 py-1 text-xs font-semibold rounded-md whitespace-nowrap ${statusColorClass}`}>
                             {currentStatus}
                           </span>
-                        </div>
-                        <div className="text-sm font-medium text-slate-500">
-                          {subjectDisplay}
                         </div>
                       </div>
                     );

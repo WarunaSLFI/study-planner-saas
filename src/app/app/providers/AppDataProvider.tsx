@@ -46,6 +46,7 @@ type AppDataContextValue = {
   activity: ActivityItem[];
   addSubject: (name: string, code: string) => void;
   addSubjectsBulk: (rows: import("@/lib/parseSubjects").ParsedSubjectRow[]) => { addedCount: number; skippedCount: number };
+  addAssignmentsBulk: (parsedAssignments: import("@/lib/parseAssignments").ParsedAssignmentRow[]) => void;
   addAssignment: (assignmentData: AddAssignmentInput) => void;
   updateAssignment: (id: string, updatedData: Partial<AssignmentItem>) => void;
   toggleAssignmentCompletion: (id: string) => void;
@@ -231,6 +232,133 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
     return { addedCount, skippedCount };
   };
 
+  const addAssignmentsBulk = (parsedAssignments: import("@/lib/parseAssignments").ParsedAssignmentRow[]) => {
+    const now = new Date().toISOString();
+    const newAssignmentsToAdd: AssignmentItem[] = [];
+    const newSubjectsToAdd: SubjectItem[] = [];
+    const newActivityToAdd: ActivityItem[] = [];
+
+    // To deduplicate assignments: Subject Code + Title + Due Date
+    const getAssignmentKey = (subjectId: string, title: string, dueDate: string | null) => {
+      return `${subjectId}-${title.toLowerCase().trim()}-${dueDate || "nodate"}`;
+    };
+
+    const existingAssignmentKeys = new Set(
+      assignments.map(a => getAssignmentKey(a.subjectId, a.title, a.dueDate))
+    );
+
+    const tempSubjects = [...subjects];
+
+    for (const parsed of parsedAssignments) {
+      let subjectId = "";
+      let finalSubjectName = "Unknown Subject";
+
+      if (parsed.subjectCode) {
+        const cleanCode = parsed.subjectCode.trim().toUpperCase();
+        const existingSubject = tempSubjects.find(s => s.code.trim().toUpperCase() === cleanCode);
+
+        if (existingSubject) {
+          subjectId = existingSubject.id;
+          finalSubjectName = existingSubject.name;
+        } else {
+          // We need to create a new subject
+          finalSubjectName = parsed.subjectName || `Subject ${cleanCode}`;
+          const newSubjectId = createSubjectId(finalSubjectName);
+
+          const newSub = {
+            id: newSubjectId,
+            name: finalSubjectName,
+            code: parsed.subjectCode.trim(),
+          };
+
+          newSubjectsToAdd.push(newSub);
+          tempSubjects.push(newSub); // Add to temp so subsequent items in this loop find it
+          subjectId = newSubjectId;
+        }
+      } else {
+        // No subject code provided in the parsed row. We could try by name, or just use a generic fallback.
+        // For simplicity, let's look for exact name match, otherwise use a generic 'Unknown' (or create one).
+        const nameToFind = parsed.subjectName ? parsed.subjectName.trim().toLowerCase() : "";
+        const existingByName = tempSubjects.find(s => s.name.toLowerCase() === nameToFind);
+        if (existingByName) {
+          subjectId = existingByName.id;
+          finalSubjectName = existingByName.name;
+        } else if (parsed.subjectName) {
+          finalSubjectName = parsed.subjectName.trim();
+          const newSubjectId = createSubjectId(finalSubjectName);
+          const newSub = {
+            id: newSubjectId,
+            name: finalSubjectName,
+            code: "UNKNOWN",
+          };
+          newSubjectsToAdd.push(newSub);
+          tempSubjects.push(newSub);
+          subjectId = newSubjectId;
+        } else {
+          // completely unknown
+          // Lets see if we have an "Unknown Subject" already
+          const unknownSub = tempSubjects.find(s => s.code === "UNKNOWN" && s.name === "Unknown Subject");
+          if (unknownSub) {
+            subjectId = unknownSub.id;
+          } else {
+            const newSubjectId = createSubjectId("Unknown Subject");
+            const newSub = {
+              id: newSubjectId,
+              name: "Unknown Subject",
+              code: "UNKNOWN",
+            };
+            newSubjectsToAdd.push(newSub);
+            tempSubjects.push(newSub);
+            subjectId = newSubjectId;
+          }
+        }
+      }
+
+      // Deduplication check
+      const assignmentKey = getAssignmentKey(subjectId, parsed.title, parsed.dueDate);
+      if (existingAssignmentKeys.has(assignmentKey)) {
+        continue; // Skip this one, it already exists
+      }
+
+      // Add it
+      const newAssignmentId = `assignment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+      newAssignmentsToAdd.push({
+        id: newAssignmentId,
+        title: parsed.title.trim(),
+        subjectId: subjectId,
+        subject: finalSubjectName,
+        dueDate: parsed.dueDate || "",
+        isCompleted: false,
+        score: "",
+        createdAt: now,
+      });
+
+      newActivityToAdd.push({
+        id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        assignmentId: newAssignmentId,
+        type: "assignment_created",
+        title: parsed.title.trim(),
+        subjectName: finalSubjectName,
+        createdAt: now,
+        dueDate: parsed.dueDate || "",
+        status: getAssignmentStatus(parsed.dueDate || "", false),
+      });
+
+      // Add to existing keys to prevent duplicates *within* the bulk import itself
+      existingAssignmentKeys.add(assignmentKey);
+    }
+
+    if (newSubjectsToAdd.length > 0) {
+      setSubjects(prev => [...prev, ...newSubjectsToAdd]);
+    }
+
+    if (newAssignmentsToAdd.length > 0) {
+      setAssignments(prev => [...newAssignmentsToAdd, ...prev]);
+      setActivity(prev => [...newActivityToAdd, ...prev].slice(0, 8));
+    }
+  };
+
   const addAssignment = (assignmentData: AddAssignmentInput) => {
     const relatedSubject = subjects.find(
       (sub) => sub.id === assignmentData.subjectId,
@@ -359,6 +487,7 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
     activity,
     addSubject,
     addSubjectsBulk,
+    addAssignmentsBulk,
     addAssignment,
     updateAssignment,
     toggleAssignmentCompletion,
