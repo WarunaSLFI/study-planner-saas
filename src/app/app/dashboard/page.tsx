@@ -85,7 +85,7 @@ export default function DashboardPage() {
                 <h3 className="text-lg font-medium text-slate-900 border-b border-slate-200 pb-2">
                   {formatDueDateHeading(group.date)}
                 </h3>
-                <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
+                <div className="divide-y divide-slate-200">
                   {group.assignments.map((assignment) => {
                     const subject = subjects.find((s) => s.id === assignment.subjectId);
 
@@ -108,15 +108,13 @@ export default function DashboardPage() {
                             : "bg-blue-100 text-blue-700";
 
                     return (
-                      <div key={assignment.id} className="p-4 flex flex-col gap-1.5">
-                        <div className="flex justify-between items-start gap-4">
-                          <span className="text-lg font-semibold text-slate-900 leading-tight">
-                            {subjectDisplay}
-                          </span>
-                          <span className={`px-2.5 py-1 text-lg font-semibold rounded-md whitespace-nowrap ${statusColorClass}`}>
-                            {currentStatus}
-                          </span>
-                        </div>
+                      <div key={assignment.id} className="py-3 flex justify-between items-start gap-4">
+                        <span className="text-lg text-slate-900 leading-tight">
+                          {subjectDisplay}
+                        </span>
+                        <span className={`px-2.5 py-1 text-lg font-semibold rounded-md whitespace-nowrap ${statusColorClass}`}>
+                          {currentStatus}
+                        </span>
                       </div>
                     );
                   })}

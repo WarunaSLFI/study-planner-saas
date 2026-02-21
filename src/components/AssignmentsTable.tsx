@@ -83,7 +83,7 @@ export default function AssignmentsTable({ assignments, onEdit, onDelete, onTogg
                     </td>
                     <td className="px-3 py-4 text-lg text-slate-700">
                       <span
-                        className={`inline-flex rounded-full px-2.5 py-1 text-lg font-semibold ring-1 ring-inset ${statusBadgeStyles[getAssignmentStatus(assignment.dueDate, assignment.isCompleted)]}`}
+                        className={`inline-flex rounded-md px-2.5 py-1 text-lg font-semibold ring-1 ring-inset ${statusBadgeStyles[getAssignmentStatus(assignment.dueDate, assignment.isCompleted)]}`}
                       >
                         {getAssignmentStatus(assignment.dueDate, assignment.isCompleted)}
                       </span>
