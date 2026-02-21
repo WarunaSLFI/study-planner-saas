@@ -22,7 +22,7 @@ type SubjectModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onAddSubject: (name: string, code: string) => void;
-  onEditSubject?: (id: string, name: string, code: string) => { success: boolean; error?: string };
+  onEditSubject?: (id: string, name: string, code: string) => Promise<{ success: boolean; error?: string }>;
   existingSubject?: SubjectItem | null;
 };
 
@@ -55,12 +55,12 @@ function SubjectModal({ isOpen, onClose, onAddSubject, onEditSubject, existingSu
     onClose();
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
 
     if (isEditing && onEditSubject && existingSubject) {
-      const result = onEditSubject(existingSubject.id, subjectName, subjectCode);
+      const result = await onEditSubject(existingSubject.id, subjectName, subjectCode);
       if (!result.success) {
         setError(result.error || "Failed to save.");
         return;
@@ -146,7 +146,7 @@ function SubjectModal({ isOpen, onClose, onAddSubject, onEditSubject, existingSu
 type ImportSubjectsModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onImportBulk: (rows: { name: string; code: string }[]) => { addedCount: number; skippedCount: number };
+  onImportBulk: (rows: { name: string; code: string }[]) => Promise<{ addedCount: number; skippedCount: number }>;
   existingSubjects: import("@/app/app/providers/AppDataProvider").SubjectItem[];
 };
 
@@ -181,9 +181,9 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
     setView("preview");
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     const selectedRows = parsedRows.filter((r) => r.checked).map((r) => ({ name: r.name, code: r.code }));
-    const { addedCount, skippedCount } = onImportBulk(selectedRows);
+    const { addedCount, skippedCount } = await onImportBulk(selectedRows);
     alert(`Imported ${addedCount} new subjects. Skipped ${skippedCount} existing.`);
     handleClose();
   };

@@ -18,7 +18,7 @@ export default function Sidebar() {
           </span>
         </div>
 
-        <nav className="space-y-1 p-4 text-2xl font-medium">
+        <nav className="space-y-1 p-4 text-lg font-medium">
           {navigationItems.map((item) => (
             <NavLink key={item.href} href={item.href} label={item.label} />
           ))}

@@ -6,17 +6,12 @@ import {
   useContext,
   useState,
   useEffect,
-  useMemo
+  useMemo,
+  useCallback,
 } from "react";
 import type { AssignmentItem, AssignmentStatus } from "@/components/AssignmentsTable";
 import { getAssignmentStatus } from "@/lib/assignmentStatus";
-import {
-  type PlannerData,
-  loadPlannerData,
-  savePlannerData,
-  createEmptyPlannerData,
-  resetPlannerData as resetLocalPlannerData
-} from "@/lib/plannerData";
+import { createClient } from "@/lib/supabase/client";
 
 export type SubjectItem = {
   id: string;
@@ -39,7 +34,7 @@ export type ActivityItem = {
   title: string;
   subjectName: string;
   createdAt: string;
-  dueDate: string; // fallback if assignment removed
+  dueDate: string;
   status: AssignmentStatus;
 };
 
@@ -47,10 +42,19 @@ type AppDataContextValue = {
   subjects: SubjectItem[];
   assignments: AssignmentItem[];
   activity: ActivityItem[];
+  // Loading & error state
+  isLoading: boolean;
+  globalError: string | null;
+  successMessage: string | null;
+  savingSubject: boolean;
+  savingAssignment: boolean;
+  bulkLoading: boolean;
+  clearError: () => void;
+  // CRUD
   addSubject: (name: string, code: string) => void;
-  editSubject: (id: string, name: string, code: string) => { success: boolean; error?: string };
+  editSubject: (id: string, name: string, code: string) => Promise<{ success: boolean; error?: string }>;
   deleteSubject: (id: string) => void;
-  addSubjectsBulk: (rows: import("@/lib/parseSubjects").ParsedSubjectRow[]) => { addedCount: number; skippedCount: number };
+  addSubjectsBulk: (rows: import("@/lib/parseSubjects").ParsedSubjectRow[]) => Promise<{ addedCount: number; skippedCount: number }>;
   addAssignmentsBulk: (parsedAssignments: import("@/lib/parseAssignments").ParsedAssignmentRow[]) => void;
   addAssignment: (assignmentData: AddAssignmentInput) => void;
   updateAssignment: (id: string, updatedData: Partial<AssignmentItem>) => void;
@@ -67,555 +71,515 @@ type AppDataProviderProps = {
   children: ReactNode;
 };
 
-function createSubjectId(name: string): string {
-  const slug = name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+// Raw DB row types
+type DbSubject = {
+  id: string;
+  user_id: string;
+  subject_name: string;
+  subject_code: string;
+  created_at: string;
+};
 
-  return `subject-${slug || "new"}-${Date.now()}`;
-}
-
-const initialActivity: ActivityItem[] = [
-  {
-    id: "activity-1",
-    assignmentId: "assignment-2",
-    type: "assignment_created",
-    title: "Datapipelines Project",
-    subjectName: "Datapipelines",
-    createdAt: "2026-02-18T14:30:00.000Z",
-    dueDate: "2026-03-10",
-    status: "Upcoming",
-  },
-  {
-    id: "activity-2",
-    assignmentId: "assignment-1",
-    type: "assignment_created",
-    title: "Operating Systems Exercise 4",
-    subjectName: "Operating Systems",
-    createdAt: "2026-02-15T10:00:00.000Z",
-    dueDate: "2026-02-25",
-    status: "Completed",
-  },
-  {
-    id: "activity-3",
-    assignmentId: "assignment-3",
-    type: "assignment_created",
-    title: "Finnish Society Quiz",
-    subjectName: "Finnish Society",
-    createdAt: "2026-02-10T09:15:00.000Z",
-    dueDate: "2026-02-20",
-    status: "Overdue",
-  }
-];
+type DbAssignment = {
+  id: string;
+  user_id: string;
+  subject_id: string;
+  title: string;
+  due_date: string | null;
+  is_completed: boolean;
+  created_at: string;
+};
 
 export default function AppDataProvider({ children }: AppDataProviderProps) {
-  const [plannerData, setPlannerData] = useState<PlannerData>(createEmptyPlannerData());
-  const [activity, setActivity] = useState<ActivityItem[]>(initialActivity);
-  const [isClient, setIsClient] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const supabase = createClient();
 
-  useEffect(() => {
-    setIsClient(true);
-    try {
-      const data = loadPlannerData();
+  const [dbSubjects, setDbSubjects] = useState<DbSubject[]>([]);
+  const [dbAssignments, setDbAssignments] = useState<DbAssignment[]>([]);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-      // Migration for legacy users so they don't break/lose existing data
-      if (data.subjects.length === 0 && data.assignments.length === 0) {
-        const legacyData = localStorage.getItem("assignment-tracker-data");
-        if (legacyData) {
-          const parsed = JSON.parse(legacyData);
+  // Loading & error flags
+  const [globalError, setGlobalError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [savingSubject, setSavingSubject] = useState(false);
+  const [savingAssignment, setSavingAssignment] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
-          if (parsed.subjects || parsed.courses) {
-            const oldSubjects = parsed.subjects || parsed.courses;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            data.subjects = oldSubjects.map((s: any) => ({
-              id: s.id,
-              subjectCode: s.code || "UNKNOWN",
-              subjectName: s.name,
-              createdAt: new Date().toISOString()
-            }));
-          }
-          if (parsed.assignments) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            data.assignments = parsed.assignments.map((a: any) => ({
-              id: a.id,
-              subjectId: a.subjectId || a.courseId,
-              title: a.title,
-              dueDate: a.dueDate || null,
-              status: a.isCompleted ? "DONE" : "TODO",
-              createdAt: a.createdAt || new Date().toISOString()
-            }));
-          }
-          if (parsed.activity) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            setActivity(parsed.activity.map((a: any) => ({ ...a, subjectName: a.subjectName || a.courseName })));
-          }
-        }
-      } else {
-        // Load activity normally if migrating isn't necessary
-        const storedActivity = localStorage.getItem("studyPlannerActivity:v1");
-        if (storedActivity) {
-          try { setActivity(JSON.parse(storedActivity)); } catch (e) { console.error(e); }
-        } else {
-          // If upgraded but no activity found, fallback to legacy activity
-          const legacyData = localStorage.getItem("assignment-tracker-data");
-          if (legacyData) {
-            try {
-              const parsedActivity = JSON.parse(legacyData).activity;
-              if (parsedActivity) setActivity(parsedActivity);
-            } catch (e) { console.error(e); }
-          }
-        }
-      }
+  const clearError = useCallback(() => setGlobalError(null), []);
 
-      setPlannerData(data);
-    } catch (e) {
-      console.error("Failed to parse local storage data:", e);
-    } finally {
-      setIsHydrated(true);
-    }
+  const flashSuccess = useCallback((msg: string) => {
+    setSuccessMessage(msg);
+    setTimeout(() => setSuccessMessage(null), 2000);
   }, []);
 
+  // ── Load data on mount ──────────────────────────────────────────────
   useEffect(() => {
-    if (isHydrated && isClient) {
-      savePlannerData(plannerData);
-      localStorage.setItem("studyPlannerActivity:v1", JSON.stringify(activity));
-    }
-  }, [plannerData, activity, isClient, isHydrated]);
+    const loadData = async () => {
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) {
+          setGlobalError(authError.message);
+          setIsLoading(false);
+          return;
+        }
+        if (!user) {
+          setIsLoading(false);
+          return;
+        }
+        setUserId(user.id);
 
-  // Expose the mapped legacy state cleanly
+        const [subjectsRes, assignmentsRes] = await Promise.all([
+          supabase.from("subjects").select("*").eq("user_id", user.id).order("created_at", { ascending: true }),
+          supabase.from("assignments").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+        ]);
+
+        if (subjectsRes.error) throw subjectsRes.error;
+        if (assignmentsRes.error) throw assignmentsRes.error;
+
+        if (subjectsRes.data) setDbSubjects(subjectsRes.data);
+        if (assignmentsRes.data) setDbAssignments(assignmentsRes.data);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : (err as { message?: string })?.message || "Failed to load data.";
+        setGlobalError(message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [supabase]);
+
+  // ── Derived state (same shape as before) ────────────────────────────
   const subjects: SubjectItem[] = useMemo(() => {
-    return plannerData.subjects.map(s => ({
+    return dbSubjects.map(s => ({
       id: s.id,
-      name: s.subjectName,
-      code: s.subjectCode
+      name: s.subject_name,
+      code: s.subject_code,
     }));
-  }, [plannerData.subjects]);
+  }, [dbSubjects]);
 
   const assignments: AssignmentItem[] = useMemo(() => {
-    return plannerData.assignments.map(a => {
-      const subject = plannerData.subjects.find(s => s.id === a.subjectId);
+    return dbAssignments.map(a => {
+      const subject = dbSubjects.find(s => s.id === a.subject_id);
       return {
         id: a.id,
         title: a.title,
-        subjectId: a.subjectId,
-        subject: subject ? subject.subjectName : "Unknown Subject",
-        dueDate: a.dueDate || "",
-        isCompleted: a.status === "DONE",
+        subjectId: a.subject_id,
+        subject: subject ? subject.subject_name : "Unknown Subject",
+        dueDate: a.due_date || "",
+        isCompleted: a.is_completed,
         score: "",
-        createdAt: a.createdAt
+        createdAt: a.created_at,
       };
     });
-  }, [plannerData.assignments, plannerData.subjects]);
+  }, [dbAssignments, dbSubjects]);
 
-  const addSubject = (name: string, code: string) => {
+  // ── Subject CRUD ─────────────────────────────────────────────────────
+  const addSubject = useCallback(async (name: string, code: string) => {
+    if (!userId) return;
     const trimmedName = name.trim();
-    if (!trimmedName || !code.trim()) return;
+    const trimmedCode = code.trim();
+    if (!trimmedName || !trimmedCode) return;
 
-    setPlannerData(prev => ({
-      ...prev,
-      subjects: [
-        ...prev.subjects,
-        {
-          id: createSubjectId(trimmedName),
-          subjectName: trimmedName,
-          subjectCode: code.trim(),
-          createdAt: new Date().toISOString()
-        }
-      ]
-    }));
-  };
+    setSavingSubject(true);
+    setGlobalError(null);
+    try {
+      const { data, error } = await supabase.from("subjects").insert({
+        user_id: userId,
+        subject_name: trimmedName,
+        subject_code: trimmedCode,
+      }).select().single();
 
-  const editSubject = (id: string, name: string, code: string): { success: boolean; error?: string } => {
+      if (error) throw error;
+      if (data) setDbSubjects(prev => [...prev, data]);
+      flashSuccess("Subject added.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : (err as { message?: string })?.message || "Failed to add subject.";
+      setGlobalError(message);
+    } finally {
+      setSavingSubject(false);
+    }
+  }, [supabase, userId]);
+
+  const editSubject = useCallback(async (id: string, name: string, code: string): Promise<{ success: boolean; error?: string }> => {
     const trimmedName = name.trim();
     const trimmedCode = code.trim();
     if (!trimmedName || !trimmedCode) return { success: false, error: "Name and code are required." };
 
     // Check for duplicate code (case-insensitive) among OTHER subjects
-    const duplicate = plannerData.subjects.find(
-      s => s.id !== id && s.subjectCode.trim().toUpperCase() === trimmedCode.toUpperCase()
+    const duplicate = dbSubjects.find(
+      s => s.id !== id && s.subject_code.trim().toUpperCase() === trimmedCode.toUpperCase()
     );
     if (duplicate) {
-      return { success: false, error: `Subject code "${trimmedCode}" is already used by "${duplicate.subjectName}".` };
+      return { success: false, error: `Subject code "${trimmedCode}" is already used by "${duplicate.subject_name}".` };
     }
 
-    setPlannerData(prev => ({
-      ...prev,
-      subjects: prev.subjects.map(s =>
-        s.id === id
-          ? { ...s, subjectName: trimmedName, subjectCode: trimmedCode }
-          : s
-      )
-    }));
-    return { success: true };
-  };
+    setSavingSubject(true);
+    setGlobalError(null);
+    try {
+      const { error } = await supabase.from("subjects").update({
+        subject_name: trimmedName,
+        subject_code: trimmedCode,
+      }).eq("id", id);
 
-  const deleteSubject = (id: string) => {
-    // Cascade delete: remove subject + all its assignments
-    setPlannerData(prev => ({
-      ...prev,
-      subjects: prev.subjects.filter(s => s.id !== id),
-      assignments: prev.assignments.filter(a => a.subjectId !== id)
-    }));
-    // Remove related activity items
-    setActivity(prev => prev.filter(a => {
-      // Remove activity for assignments belonging to this subject
-      const relatedAssignmentIds = new Set(
-        plannerData.assignments.filter(asg => asg.subjectId === id).map(asg => asg.id)
-      );
-      return !relatedAssignmentIds.has(a.assignmentId);
-    }));
-  };
+      if (error) throw error;
 
-  const addSubjectsBulk = (rows: import("@/lib/parseSubjects").ParsedSubjectRow[]) => {
-    let addedCount = 0;
-    let skippedCount = 0;
+      setDbSubjects(prev => prev.map(s =>
+        s.id === id ? { ...s, subject_name: trimmedName, subject_code: trimmedCode } : s
+      ));
+      flashSuccess("Subject updated.");
+      return { success: true };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : (err as { message?: string })?.message || "Failed to edit subject.";
+      setGlobalError(message);
+      return { success: false, error: message };
+    } finally {
+      setSavingSubject(false);
+    }
+  }, [supabase, dbSubjects]);
 
-    setPlannerData(prev => {
-      const existingCodes = new Set(prev.subjects.map((s) => s.subjectCode.trim().toUpperCase()));
-      const newSubjects: import("@/lib/plannerData").Subject[] = [];
+  const deleteSubject = useCallback(async (id: string) => {
+    setSavingSubject(true);
+    setGlobalError(null);
+    try {
+      const { error } = await supabase.from("subjects").delete().eq("id", id);
+      if (error) throw error;
+      setDbSubjects(prev => prev.filter(s => s.id !== id));
+      setDbAssignments(prev => prev.filter(a => a.subject_id !== id));
+      flashSuccess("Subject deleted.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : (err as { message?: string })?.message || "Failed to delete subject.";
+      setGlobalError(message);
+    } finally {
+      setSavingSubject(false);
+    }
+  }, [supabase]);
+
+  const addSubjectsBulk = useCallback(async (rows: import("@/lib/parseSubjects").ParsedSubjectRow[]): Promise<{ addedCount: number; skippedCount: number }> => {
+    if (!userId) return { addedCount: 0, skippedCount: 0 };
+
+    setBulkLoading(true);
+    setGlobalError(null);
+    try {
+      const existingCodes = new Set(dbSubjects.map(s => s.subject_code.trim().toUpperCase()));
+      const toInsert: { user_id: string; subject_name: string; subject_code: string }[] = [];
+      let skippedCount = 0;
 
       for (const row of rows) {
         const cleanCode = row.code.trim().toUpperCase();
         if (!existingCodes.has(cleanCode)) {
-          newSubjects.push({
-            id: createSubjectId(row.name),
-            subjectName: row.name.trim(),
-            subjectCode: row.code.trim(),
-            createdAt: new Date().toISOString()
+          toInsert.push({
+            user_id: userId,
+            subject_name: row.name.trim(),
+            subject_code: row.code.trim(),
           });
           existingCodes.add(cleanCode);
-          addedCount++;
         } else {
           skippedCount++;
         }
       }
 
-      if (newSubjects.length > 0) {
-        return {
-          ...prev,
-          subjects: [...prev.subjects, ...newSubjects]
-        };
+      if (toInsert.length > 0) {
+        const { data, error } = await supabase.from("subjects").insert(toInsert).select();
+        if (error) throw error;
+        if (data) setDbSubjects(prev => [...prev, ...data]);
       }
-      return prev;
-    });
 
-    return { addedCount, skippedCount };
-  };
+      return { addedCount: toInsert.length, skippedCount };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : (err as { message?: string })?.message || "Failed to import subjects.";
+      setGlobalError(message);
+      return { addedCount: 0, skippedCount: rows.length };
+    } finally {
+      setBulkLoading(false);
+    }
+  }, [supabase, userId, dbSubjects]);
 
-  const addAssignmentsBulk = (parsedAssignments: import("@/lib/parseAssignments").ParsedAssignmentRow[]) => {
-    const now = new Date().toISOString();
+  // ── Assignment CRUD ──────────────────────────────────────────────────
+  const addAssignment = useCallback(async (assignmentData: AddAssignmentInput) => {
+    if (!userId) return;
 
-    setPlannerData(prev => {
-      const newAssignmentsToAdd: import("@/lib/plannerData").Assignment[] = [];
-      const newSubjectsToAdd: import("@/lib/plannerData").Subject[] = [];
-      const newActivityToAdd: ActivityItem[] = [];
+    setSavingAssignment(true);
+    setGlobalError(null);
+    try {
+      const { data, error } = await supabase.from("assignments").insert({
+        user_id: userId,
+        subject_id: assignmentData.subjectId,
+        title: assignmentData.title.trim(),
+        due_date: assignmentData.dueDate || null,
+        is_completed: assignmentData.isCompleted,
+      }).select().single();
 
-      // To deduplicate assignments: Subject Code + Title + Due Date
-      const getAssignmentKey = (subjectId: string, title: string, dueDate: string | null) => {
-        return `${subjectId}-${title.toLowerCase().trim()}-${dueDate || "nodate"}`;
-      };
+      if (error) throw error;
 
-      const existingAssignmentKeys = new Set(
-        prev.assignments.map(a => getAssignmentKey(a.subjectId, a.title, a.dueDate))
-      );
+      if (data) {
+        setDbAssignments(prev => [data, ...prev]);
 
-      const tempSubjects = [...prev.subjects];
+        // Activity (client-side only)
+        const subject = dbSubjects.find(s => s.id === assignmentData.subjectId);
+        setActivity(prev => [{
+          id: `activity-${Date.now()}`,
+          assignmentId: data.id,
+          type: "assignment_created" as const,
+          title: assignmentData.title.trim(),
+          subjectName: subject?.subject_name || "Unknown Subject",
+          createdAt: data.created_at,
+          dueDate: assignmentData.dueDate || "",
+          status: getAssignmentStatus(assignmentData.dueDate, assignmentData.isCompleted),
+        }, ...prev].slice(0, 8));
+      }
+      flashSuccess("Assignment added.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : (err as { message?: string })?.message || "Failed to add assignment.";
+      setGlobalError(message);
+    } finally {
+      setSavingAssignment(false);
+    }
+  }, [supabase, userId, dbSubjects]);
+
+  const updateAssignment = useCallback(async (id: string, updatedData: Partial<AssignmentItem>) => {
+    setSavingAssignment(true);
+    setGlobalError(null);
+    try {
+      const updatePayload: Record<string, unknown> = {};
+      if (updatedData.title !== undefined) updatePayload.title = updatedData.title;
+      if (updatedData.subjectId !== undefined) updatePayload.subject_id = updatedData.subjectId;
+      if (updatedData.dueDate !== undefined) updatePayload.due_date = updatedData.dueDate || null;
+      if (updatedData.isCompleted !== undefined) updatePayload.is_completed = updatedData.isCompleted;
+
+      const { error } = await supabase.from("assignments").update(updatePayload).eq("id", id);
+      if (error) throw error;
+
+      setDbAssignments(prev => prev.map(a => {
+        if (a.id === id) {
+          return {
+            ...a,
+            title: updatedData.title !== undefined ? updatedData.title : a.title,
+            subject_id: updatedData.subjectId !== undefined ? updatedData.subjectId : a.subject_id,
+            due_date: updatedData.dueDate !== undefined ? (updatedData.dueDate || null) : a.due_date,
+            is_completed: updatedData.isCompleted !== undefined ? updatedData.isCompleted : a.is_completed,
+          };
+        }
+        return a;
+      }));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : (err as { message?: string })?.message || "Failed to update assignment.";
+      setGlobalError(message);
+    } finally {
+      setSavingAssignment(false);
+    }
+  }, [supabase]);
+
+  const deleteAssignment = useCallback(async (id: string) => {
+    setSavingAssignment(true);
+    setGlobalError(null);
+    try {
+      const { error } = await supabase.from("assignments").delete().eq("id", id);
+      if (error) throw error;
+      setDbAssignments(prev => prev.filter(a => a.id !== id));
+      flashSuccess("Assignment deleted.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : (err as { message?: string })?.message || "Failed to delete assignment.";
+      setGlobalError(message);
+    } finally {
+      setSavingAssignment(false);
+    }
+  }, [supabase]);
+
+  const toggleAssignmentCompletion = useCallback(async (id: string) => {
+    const assignment = dbAssignments.find(a => a.id === id);
+    if (!assignment) return;
+
+    setSavingAssignment(true);
+    setGlobalError(null);
+    try {
+      const newCompleted = !assignment.is_completed;
+      const { error } = await supabase.from("assignments").update({
+        is_completed: newCompleted,
+      }).eq("id", id);
+
+      if (error) throw error;
+
+      setDbAssignments(prev => prev.map(a =>
+        a.id === id ? { ...a, is_completed: newCompleted } : a
+      ));
+
+      const sub = dbSubjects.find(s => s.id === assignment.subject_id);
+      setActivity(prev => [{
+        id: `activity-${Date.now()}`,
+        assignmentId: id,
+        type: (newCompleted ? "assignment_completed" : "assignment_uncompleted") as ActivityItem["type"],
+        title: assignment.title,
+        subjectName: sub?.subject_name || "Unknown Subject",
+        createdAt: new Date().toISOString(),
+        dueDate: assignment.due_date || "",
+        status: getAssignmentStatus(assignment.due_date || "", newCompleted),
+      }, ...prev].slice(0, 8));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : (err as { message?: string })?.message || "Failed to toggle completion.";
+      setGlobalError(message);
+    } finally {
+      setSavingAssignment(false);
+    }
+  }, [supabase, dbAssignments, dbSubjects]);
+
+  // ── Bulk import assignments ──────────────────────────────────────────
+  const addAssignmentsBulk = useCallback(async (parsedAssignments: import("@/lib/parseAssignments").ParsedAssignmentRow[]) => {
+    if (!userId) return;
+
+    setBulkLoading(true);
+    setGlobalError(null);
+    try {
+      let currentSubjects = [...dbSubjects];
+
+      // Deduplicate key
+      const getKey = (subjectId: string, title: string, dueDate: string | null) =>
+        `${subjectId}-${title.toLowerCase().trim()}-${dueDate || "nodate"}`;
+      const existingKeys = new Set(dbAssignments.map(a => getKey(a.subject_id, a.title, a.due_date)));
+
+      const assignmentsToInsert: { user_id: string; subject_id: string; title: string; due_date: string | null; is_completed: boolean }[] = [];
 
       for (const parsed of parsedAssignments) {
         let subjectId = "";
-        let finalSubjectName = "Unknown Subject";
 
         if (parsed.subjectCode) {
           const cleanCode = parsed.subjectCode.trim().toUpperCase();
-          const existingSubject = tempSubjects.find(s => s.subjectCode.trim().toUpperCase() === cleanCode);
+          const existing = currentSubjects.find(s => s.subject_code.trim().toUpperCase() === cleanCode);
 
-          if (existingSubject) {
-            subjectId = existingSubject.id;
-            finalSubjectName = existingSubject.subjectName;
+          if (existing) {
+            subjectId = existing.id;
           } else {
-            // We need to create a new subject
-            finalSubjectName = parsed.subjectName || `Subject ${cleanCode}`;
-            const newSubjectId = createSubjectId(finalSubjectName);
+            const subjectName = parsed.subjectName || `Subject ${cleanCode}`;
+            const { data, error } = await supabase.from("subjects").insert({
+              user_id: userId,
+              subject_name: subjectName,
+              subject_code: parsed.subjectCode.trim(),
+            }).select().single();
 
-            const newSub = {
-              id: newSubjectId,
-              subjectName: finalSubjectName,
-              subjectCode: parsed.subjectCode.trim(),
-              createdAt: now
-            };
-
-            newSubjectsToAdd.push(newSub);
-            tempSubjects.push(newSub); // Add to temp so subsequent items in this loop find it
-            subjectId = newSubjectId;
+            if (error) throw error;
+            if (data) {
+              currentSubjects.push(data);
+              subjectId = data.id;
+            }
           }
-        } else {
-          // No subject code provided in the parsed row. 
-          const nameToFind = parsed.subjectName ? parsed.subjectName.trim().toLowerCase() : "";
-          const existingByName = tempSubjects.find(s => s.subjectName.toLowerCase() === nameToFind);
+        } else if (parsed.subjectName) {
+          const nameToFind = parsed.subjectName.trim().toLowerCase();
+          const existingByName = currentSubjects.find(s => s.subject_name.toLowerCase() === nameToFind);
+
           if (existingByName) {
             subjectId = existingByName.id;
-            finalSubjectName = existingByName.subjectName;
-          } else if (parsed.subjectName) {
-            finalSubjectName = parsed.subjectName.trim();
-            const newSubjectId = createSubjectId(finalSubjectName);
-            const newSub = {
-              id: newSubjectId,
-              subjectName: finalSubjectName,
-              subjectCode: "UNKNOWN",
-              createdAt: now
-            };
-            newSubjectsToAdd.push(newSub);
-            tempSubjects.push(newSub);
-            subjectId = newSubjectId;
           } else {
-            // completely unknown
-            const unknownSub = tempSubjects.find(s => s.subjectCode === "UNKNOWN" && s.subjectName === "Unknown Subject");
-            if (unknownSub) {
-              subjectId = unknownSub.id;
-            } else {
-              const newSubjectId = createSubjectId("Unknown Subject");
-              const newSub = {
-                id: newSubjectId,
-                subjectName: "Unknown Subject",
-                subjectCode: "UNKNOWN",
-                createdAt: now
-              };
-              newSubjectsToAdd.push(newSub);
-              tempSubjects.push(newSub);
-              subjectId = newSubjectId;
+            const { data, error } = await supabase.from("subjects").insert({
+              user_id: userId,
+              subject_name: parsed.subjectName.trim(),
+              subject_code: "UNKNOWN",
+            }).select().single();
+
+            if (error) throw error;
+            if (data) {
+              currentSubjects.push(data);
+              subjectId = data.id;
             }
           }
         }
 
-        // Deduplication check
-        const assignmentKey = getAssignmentKey(subjectId, parsed.title, parsed.dueDate);
-        if (existingAssignmentKeys.has(assignmentKey)) {
-          continue; // Skip this one, it already exists
-        }
+        if (!subjectId) continue;
 
-        // Add it
-        const newAssignmentId = `assignment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const key = getKey(subjectId, parsed.title, parsed.dueDate || null);
+        if (existingKeys.has(key)) continue;
 
-        newAssignmentsToAdd.push({
-          id: newAssignmentId,
+        assignmentsToInsert.push({
+          user_id: userId,
+          subject_id: subjectId,
           title: parsed.title.trim(),
-          subjectId: subjectId,
-          dueDate: parsed.dueDate || null,
-          status: "TODO",
-          createdAt: now,
+          due_date: parsed.dueDate || null,
+          is_completed: false,
         });
-
-        newActivityToAdd.push({
-          id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          assignmentId: newAssignmentId,
-          type: "assignment_created",
-          title: parsed.title.trim(),
-          subjectName: finalSubjectName,
-          createdAt: now,
-          dueDate: parsed.dueDate || "",
-          status: getAssignmentStatus(parsed.dueDate || "", false),
-        });
-
-        // Add to existing keys to prevent duplicates *within* the bulk import itself
-        existingAssignmentKeys.add(assignmentKey);
+        existingKeys.add(key);
       }
 
-      if (newActivityToAdd.length > 0) {
-        setActivity(act => [...newActivityToAdd, ...act].slice(0, 8));
-      }
-
-      if (newAssignmentsToAdd.length > 0 || newSubjectsToAdd.length > 0) {
-        return {
-          ...prev,
-          subjects: [...prev.subjects, ...newSubjectsToAdd],
-          assignments: [...newAssignmentsToAdd, ...prev.assignments] // append new assignments first
-        };
-      }
-      return prev;
-    });
-  };
-
-  const addAssignment = (assignmentData: AddAssignmentInput) => {
-    const now = new Date().toISOString();
-    const newAssignmentId = `assignment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    let subjectName = "Unknown Subject";
-
-    setPlannerData(prev => {
-      const relatedSubject = prev.subjects.find(
-        (sub) => sub.id === assignmentData.subjectId,
-      );
-      subjectName = relatedSubject?.subjectName ?? "Unknown Subject";
-
-      const newAssignment: import("@/lib/plannerData").Assignment = {
-        id: newAssignmentId,
-        title: assignmentData.title.trim(),
-        subjectId: assignmentData.subjectId,
-        dueDate: assignmentData.dueDate || null,
-        status: assignmentData.isCompleted ? "DONE" : "TODO",
-        createdAt: now,
-      };
-
-      return {
-        ...prev,
-        assignments: [newAssignment, ...prev.assignments]
-      };
-    });
-
-    setActivity((previousActivity) => {
-      const newActivityItem: ActivityItem = {
-        id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        assignmentId: newAssignmentId,
-        type: "assignment_created",
-        title: assignmentData.title.trim(),
-        subjectName,
-        createdAt: now,
-        dueDate: assignmentData.dueDate,
-        status: getAssignmentStatus(assignmentData.dueDate, assignmentData.isCompleted),
-      };
-      return [newActivityItem, ...previousActivity].slice(0, 8);
-    });
-  };
-
-  const updateAssignment = (id: string, updatedData: Partial<AssignmentItem>) => {
-    setPlannerData(prev => ({
-      ...prev,
-      assignments: prev.assignments.map(a => {
-        if (a.id === id) {
-          return {
-            ...a,
-            // Apply the matching mapped properties to the new model
-            title: updatedData.title !== undefined ? updatedData.title : a.title,
-            subjectId: updatedData.subjectId !== undefined ? updatedData.subjectId : a.subjectId,
-            dueDate: updatedData.dueDate !== undefined ? updatedData.dueDate : a.dueDate,
-            status: updatedData.isCompleted !== undefined ? (updatedData.isCompleted ? "DONE" : "TODO") : a.status
-          };
+      if (assignmentsToInsert.length > 0) {
+        const { data, error } = await supabase.from("assignments").insert(assignmentsToInsert).select();
+        if (error) throw error;
+        if (data) {
+          setDbAssignments(prev => [...data, ...prev]);
         }
-        return a;
-      })
-    }));
-  };
-
-  const deleteAssignment = (id: string) => {
-    setPlannerData(prev => ({
-      ...prev,
-      assignments: prev.assignments.filter(a => a.id !== id)
-    }));
-    setActivity(prev => prev.filter(a => a.assignmentId !== id));
-  };
-
-  const toggleAssignmentCompletion = (id: string) => {
-    let affectedAssignmentTitle = "";
-    let affectedSubjectName = "";
-    let affectedDueDate = "";
-    let newCompletedState = false;
-
-    setPlannerData(prev => {
-      const mappedAssignments = prev.assignments.map(a => {
-        if (a.id === id) {
-          newCompletedState = a.status !== "DONE";
-          affectedAssignmentTitle = a.title;
-          affectedDueDate = a.dueDate || "";
-
-          const sub = prev.subjects.find(s => s.id === a.subjectId);
-          affectedSubjectName = sub ? sub.subjectName : "Unknown Subject";
-
-          return {
-            ...a,
-            status: newCompletedState ? "DONE" : "TODO" as "DONE" | "TODO" | "IN_PROGRESS"
-          };
-        }
-        return a;
-      });
-
-      return { ...prev, assignments: mappedAssignments };
-    });
-
-    // Timeout hack to wait for React to process the state above and grab correct title if undefined, 
-    // but in realistic scenarios title/date are always grabbed cleanly from the map map due to closures capturing correctly in next render?
-    // Actually using those closure-based vars works immediately.
-    setTimeout(() => {
-      if (affectedAssignmentTitle) {
-        setActivity((previousActivity) => {
-          const now = new Date().toISOString();
-          const actionType = newCompletedState ? "assignment_completed" : "assignment_uncompleted";
-
-          const newActivityItem: ActivityItem = {
-            id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            assignmentId: id,
-            type: actionType,
-            title: affectedAssignmentTitle,
-            subjectName: affectedSubjectName,
-            createdAt: now,
-            dueDate: affectedDueDate,
-            status: getAssignmentStatus(affectedDueDate, newCompletedState),
-          };
-          return [newActivityItem, ...previousActivity].slice(0, 8);
-        });
       }
-    }, 0);
-  };
 
-  const resetData = () => {
-    resetLocalPlannerData();
-    localStorage.removeItem("studyPlannerActivity:v1");
-    localStorage.removeItem("assignment-tracker-data"); // cleanup legacy 
-    setPlannerData(createEmptyPlannerData());
-    setActivity(initialActivity); // Set back to minimal defaults
-  };
+      // Refresh subjects in case new ones were created
+      setDbSubjects(currentSubjects);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : (err as { message?: string })?.message || "Failed to import assignments.";
+      setGlobalError(message);
+    } finally {
+      setBulkLoading(false);
+    }
+  }, [supabase, userId, dbSubjects, dbAssignments]);
 
-  const exportData = (): string => {
-    return JSON.stringify({ plannerData, activity });
-  };
-
-  const importData = (jsonString: string): boolean => {
+  // ── Reset / Export / Import ──────────────────────────────────────────
+  const resetData = useCallback(async () => {
+    if (!userId) return;
+    setSavingSubject(true);
+    setGlobalError(null);
     try {
-      const parsed = JSON.parse(jsonString);
+      const { error: aErr } = await supabase.from("assignments").delete().eq("user_id", userId);
+      if (aErr) throw aErr;
+      const { error: sErr } = await supabase.from("subjects").delete().eq("user_id", userId);
+      if (sErr) throw sErr;
+      setDbSubjects([]);
+      setDbAssignments([]);
+      setActivity([]);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : (err as { message?: string })?.message || "Failed to reset data.";
+      setGlobalError(message);
+    } finally {
+      setSavingSubject(false);
+    }
+  }, [supabase, userId]);
 
-      // Handle importing an exported package that contains both plannerData and activity
-      if (parsed.plannerData && parsed.plannerData.subjects && parsed.plannerData.assignments) {
-        setPlannerData(parsed.plannerData);
-        if (parsed.activity) setActivity(parsed.activity);
-        return true;
-      }
+  const exportData = useCallback((): string => {
+    return JSON.stringify({
+      subjects: dbSubjects.map(s => ({
+        id: s.id,
+        subject_name: s.subject_name,
+        subject_code: s.subject_code,
+        created_at: s.created_at,
+      })),
+      assignments: dbAssignments.map(a => ({
+        id: a.id,
+        subject_id: a.subject_id,
+        title: a.title,
+        due_date: a.due_date,
+        is_completed: a.is_completed,
+        created_at: a.created_at,
+      })),
+    }, null, 2);
+  }, [dbSubjects, dbAssignments]);
 
-      // Legacy backwards-compatibility
-      const importedSubjects = parsed.subjects || parsed.courses;
-      if (Array.isArray(importedSubjects) && Array.isArray(parsed.assignments) && Array.isArray(parsed.activity)) {
-        const newData = createEmptyPlannerData();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        newData.subjects = importedSubjects.map((s: any) => ({
-          id: s.id,
-          subjectCode: s.code || "UNKNOWN",
-          subjectName: s.name,
-          createdAt: new Date().toISOString()
-        }));
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        newData.assignments = parsed.assignments.map((a: any) => ({
-          id: a.id,
-          subjectId: a.subjectId || a.courseId,
-          title: a.title,
-          dueDate: a.dueDate || null,
-          status: a.isCompleted ? "DONE" : "TODO",
-          createdAt: a.createdAt || new Date().toISOString()
-        }));
-        setPlannerData(newData);
-        setActivity(parsed.activity);
-        return true;
-      }
-      return false;
-    } catch (e) {
-      console.error("Failed to parse import data", e);
+  const importData = useCallback((jsonString: string): boolean => {
+    try {
+      JSON.parse(jsonString);
+      return false; // TODO: implement Supabase import
+    } catch {
       return false;
     }
-  };
+  }, []);
 
+  // ── Context value ────────────────────────────────────────────────────
   const value: AppDataContextValue = {
     subjects,
     assignments,
     activity,
+    // Loading & error
+    isLoading,
+    globalError,
+    successMessage,
+    savingSubject,
+    savingAssignment,
+    bulkLoading,
+    clearError,
+    // CRUD
     addSubject,
     editSubject,
     deleteSubject,
@@ -630,11 +594,34 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
     importData,
   };
 
-  if (!isHydrated) {
-    return <div className="p-6 text-sm text-gray-500">Loading...</div>;
+  if (isLoading) {
+    return <div className="flex min-h-screen items-center justify-center"><p className="text-lg text-slate-500">Loading…</p></div>;
   }
 
-  return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;
+  return (
+    <AppDataContext.Provider value={value}>
+      {/* Error banner */}
+      {globalError && (
+        <div className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between gap-3 border-b border-rose-300 bg-rose-50 px-6 py-3 shadow-sm">
+          <p className="text-lg font-medium text-rose-700">{globalError}</p>
+          <button
+            type="button"
+            onClick={clearError}
+            className="shrink-0 rounded-lg border border-rose-300 px-3 py-1 text-sm font-medium text-rose-600 transition hover:bg-rose-100"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+      {/* Success toast */}
+      {successMessage && (
+        <div className="fixed top-4 right-4 z-[100] rounded-xl border border-green-300 bg-green-50 px-5 py-3 shadow-lg">
+          <p className="text-lg font-medium text-green-700">{successMessage}</p>
+        </div>
+      )}
+      {children}
+    </AppDataContext.Provider>
+  );
 }
 
 export function useAppData(): AppDataContextValue {
