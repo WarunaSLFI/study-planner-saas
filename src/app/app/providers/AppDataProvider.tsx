@@ -6,8 +6,17 @@ import {
   useContext,
   useState,
   useEffect,
+  useMemo
 } from "react";
 import type { AssignmentItem, AssignmentStatus } from "@/components/AssignmentsTable";
+import { getAssignmentStatus } from "@/lib/assignmentStatus";
+import {
+  type PlannerData,
+  loadPlannerData,
+  savePlannerData,
+  createEmptyPlannerData,
+  resetPlannerData as resetLocalPlannerData
+} from "@/lib/plannerData";
 
 export type SubjectItem = {
   id: string;
@@ -34,12 +43,6 @@ export type ActivityItem = {
   status: AssignmentStatus;
 };
 
-export type AppDataState = {
-  subjects: SubjectItem[];
-  assignments: AssignmentItem[];
-  activity: ActivityItem[];
-};
-
 type AppDataContextValue = {
   subjects: SubjectItem[];
   assignments: AssignmentItem[];
@@ -55,46 +58,21 @@ type AppDataContextValue = {
   importData: (jsonString: string) => boolean;
 };
 
-const initialSubjects: SubjectItem[] = [
-  { id: "subject-operating-systems", name: "Operating Systems", code: "5G00DL86" },
-  { id: "subject-datapipelines", name: "Datapipelines", code: "NN00FC85" },
-  { id: "subject-finnish-society", name: "Finnish Society", code: "5G00GC28" },
-];
+const AppDataContext = createContext<AppDataContextValue | undefined>(undefined);
 
-const initialAssignments: AssignmentItem[] = [
-  {
-    id: "assignment-1",
-    title: "Operating Systems Exercise 4",
-    subjectId: "subject-operating-systems",
-    subject: "Operating Systems",
-    dueDate: "2026-02-25",
-    isCompleted: true,
-    score: "9/10",
-    createdAt: "2026-02-15T10:00:00.000Z",
-  },
-  {
-    id: "assignment-2",
-    title: "Datapipelines Project",
-    subjectId: "subject-datapipelines",
-    subject: "Datapipelines",
-    dueDate: "2026-03-10",
-    isCompleted: false,
-    score: "24/30",
-    createdAt: "2026-02-18T14:30:00.000Z",
-  },
-  {
-    id: "assignment-3",
-    title: "Finnish Society Quiz",
-    subjectId: "subject-finnish-society",
-    subject: "Finnish Society",
-    dueDate: "2026-02-20",
-    isCompleted: false,
-    score: "8/10",
-    createdAt: "2026-02-10T09:15:00.000Z",
-  },
-];
+type AppDataProviderProps = {
+  children: ReactNode;
+};
 
-import { getAssignmentStatus } from "@/lib/assignmentStatus";
+function createSubjectId(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return `subject-${slug || "new"}-${Date.now()}`;
+}
 
 const initialActivity: ActivityItem[] = [
   {
@@ -129,26 +107,8 @@ const initialActivity: ActivityItem[] = [
   }
 ];
 
-const AppDataContext = createContext<AppDataContextValue | undefined>(undefined);
-
-type AppDataProviderProps = {
-  children: ReactNode;
-};
-
-function createSubjectId(name: string): string {
-  const slug = name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return `subject-${slug || "new"}-${Date.now()}`;
-}
-
 export default function AppDataProvider({ children }: AppDataProviderProps) {
-  const [subjects, setSubjects] = useState<SubjectItem[]>(initialSubjects);
-  const [assignments, setAssignments] =
-    useState<AssignmentItem[]>(initialAssignments);
+  const [plannerData, setPlannerData] = useState<PlannerData>(createEmptyPlannerData());
   const [activity, setActivity] = useState<ActivityItem[]>(initialActivity);
   const [isClient, setIsClient] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -156,233 +116,312 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
   useEffect(() => {
     setIsClient(true);
     try {
-      const storedData = localStorage.getItem("assignment-tracker-data");
-      if (storedData) {
-        const parsed: AppDataState = JSON.parse(storedData);
-        // Map courses arrays to subjects arrays for migrating users seamlessly
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const loadedSubjects = parsed.subjects || (parsed as any).courses;
-        if (loadedSubjects) {
-          // Add default code if migrating
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          setSubjects(loadedSubjects.map((s: any) => ({ ...s, code: s.code || "UNKNOWN" })));
+      const data = loadPlannerData();
+
+      // Migration for legacy users so they don't break/lose existing data
+      if (data.subjects.length === 0 && data.assignments.length === 0) {
+        const legacyData = localStorage.getItem("assignment-tracker-data");
+        if (legacyData) {
+          const parsed = JSON.parse(legacyData);
+
+          if (parsed.subjects || parsed.courses) {
+            const oldSubjects = parsed.subjects || parsed.courses;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            data.subjects = oldSubjects.map((s: any) => ({
+              id: s.id,
+              subjectCode: s.code || "UNKNOWN",
+              subjectName: s.name,
+              createdAt: new Date().toISOString()
+            }));
+          }
+          if (parsed.assignments) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            data.assignments = parsed.assignments.map((a: any) => ({
+              id: a.id,
+              subjectId: a.subjectId || a.courseId,
+              title: a.title,
+              dueDate: a.dueDate || null,
+              status: a.isCompleted ? "DONE" : "TODO",
+              createdAt: a.createdAt || new Date().toISOString()
+            }));
+          }
+          if (parsed.activity) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            setActivity(parsed.activity.map((a: any) => ({ ...a, subjectName: a.subjectName || a.courseName })));
+          }
         }
-        if (parsed.assignments) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          setAssignments(parsed.assignments.map((a: any) => ({ ...a, subjectId: a.subjectId || a.courseId })));
-        }
-        if (parsed.activity) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          setActivity(parsed.activity.map((a: any) => ({ ...a, subjectName: a.subjectName || a.courseName })));
+      } else {
+        // Load activity normally if migrating isn't necessary
+        const storedActivity = localStorage.getItem("studyPlannerActivity:v1");
+        if (storedActivity) {
+          try { setActivity(JSON.parse(storedActivity)); } catch (e) { console.error(e); }
+        } else {
+          // If upgraded but no activity found, fallback to legacy activity
+          const legacyData = localStorage.getItem("assignment-tracker-data");
+          if (legacyData) {
+            try {
+              const parsedActivity = JSON.parse(legacyData).activity;
+              if (parsedActivity) setActivity(parsedActivity);
+            } catch (e) { console.error(e); }
+          }
         }
       }
+
+      setPlannerData(data);
     } catch (e) {
       console.error("Failed to parse local storage data:", e);
-      localStorage.removeItem("assignment-tracker-data");
     } finally {
       setIsHydrated(true);
     }
   }, []);
 
   useEffect(() => {
-    if (isClient) {
-      localStorage.setItem(
-        "assignment-tracker-data",
-        JSON.stringify({ subjects, assignments, activity }),
-      );
+    if (isHydrated && isClient) {
+      savePlannerData(plannerData);
+      localStorage.setItem("studyPlannerActivity:v1", JSON.stringify(activity));
     }
-  }, [subjects, assignments, activity, isClient]);
+  }, [plannerData, activity, isClient, isHydrated]);
+
+  // Expose the mapped legacy state cleanly
+  const subjects: SubjectItem[] = useMemo(() => {
+    return plannerData.subjects.map(s => ({
+      id: s.id,
+      name: s.subjectName,
+      code: s.subjectCode
+    }));
+  }, [plannerData.subjects]);
+
+  const assignments: AssignmentItem[] = useMemo(() => {
+    return plannerData.assignments.map(a => {
+      const subject = plannerData.subjects.find(s => s.id === a.subjectId);
+      return {
+        id: a.id,
+        title: a.title,
+        subjectId: a.subjectId,
+        subject: subject ? subject.subjectName : "Unknown Subject",
+        dueDate: a.dueDate || "",
+        isCompleted: a.status === "DONE",
+        score: "",
+        createdAt: a.createdAt
+      };
+    });
+  }, [plannerData.assignments, plannerData.subjects]);
 
   const addSubject = (name: string, code: string) => {
     const trimmedName = name.trim();
     if (!trimmedName || !code.trim()) return;
 
-    setSubjects((prev) => [
+    setPlannerData(prev => ({
       ...prev,
-      { id: createSubjectId(trimmedName), name: trimmedName, code: code.trim() },
-    ]);
+      subjects: [
+        ...prev.subjects,
+        {
+          id: createSubjectId(trimmedName),
+          subjectName: trimmedName,
+          subjectCode: code.trim(),
+          createdAt: new Date().toISOString()
+        }
+      ]
+    }));
   };
 
   const addSubjectsBulk = (rows: import("@/lib/parseSubjects").ParsedSubjectRow[]) => {
     let addedCount = 0;
     let skippedCount = 0;
 
-    const existingCodes = new Set(subjects.map((s) => s.code.trim().toUpperCase()));
-    const newSubjects: SubjectItem[] = [];
+    setPlannerData(prev => {
+      const existingCodes = new Set(prev.subjects.map((s) => s.subjectCode.trim().toUpperCase()));
+      const newSubjects: import("@/lib/plannerData").Subject[] = [];
 
-    for (const row of rows) {
-      const cleanCode = row.code.trim().toUpperCase();
-      if (!existingCodes.has(cleanCode)) {
-        newSubjects.push({
-          id: createSubjectId(row.name),
-          name: row.name.trim(),
-          code: row.code.trim(),
-        });
-        existingCodes.add(cleanCode);
-        addedCount++;
-      } else {
-        skippedCount++;
+      for (const row of rows) {
+        const cleanCode = row.code.trim().toUpperCase();
+        if (!existingCodes.has(cleanCode)) {
+          newSubjects.push({
+            id: createSubjectId(row.name),
+            subjectName: row.name.trim(),
+            subjectCode: row.code.trim(),
+            createdAt: new Date().toISOString()
+          });
+          existingCodes.add(cleanCode);
+          addedCount++;
+        } else {
+          skippedCount++;
+        }
       }
-    }
 
-    if (newSubjects.length > 0) {
-      setSubjects((prev) => [...prev, ...newSubjects]);
-    }
+      if (newSubjects.length > 0) {
+        return {
+          ...prev,
+          subjects: [...prev.subjects, ...newSubjects]
+        };
+      }
+      return prev;
+    });
 
     return { addedCount, skippedCount };
   };
 
   const addAssignmentsBulk = (parsedAssignments: import("@/lib/parseAssignments").ParsedAssignmentRow[]) => {
     const now = new Date().toISOString();
-    const newAssignmentsToAdd: AssignmentItem[] = [];
-    const newSubjectsToAdd: SubjectItem[] = [];
-    const newActivityToAdd: ActivityItem[] = [];
 
-    // To deduplicate assignments: Subject Code + Title + Due Date
-    const getAssignmentKey = (subjectId: string, title: string, dueDate: string | null) => {
-      return `${subjectId}-${title.toLowerCase().trim()}-${dueDate || "nodate"}`;
-    };
+    setPlannerData(prev => {
+      const newAssignmentsToAdd: import("@/lib/plannerData").Assignment[] = [];
+      const newSubjectsToAdd: import("@/lib/plannerData").Subject[] = [];
+      const newActivityToAdd: ActivityItem[] = [];
 
-    const existingAssignmentKeys = new Set(
-      assignments.map(a => getAssignmentKey(a.subjectId, a.title, a.dueDate))
-    );
+      // To deduplicate assignments: Subject Code + Title + Due Date
+      const getAssignmentKey = (subjectId: string, title: string, dueDate: string | null) => {
+        return `${subjectId}-${title.toLowerCase().trim()}-${dueDate || "nodate"}`;
+      };
 
-    const tempSubjects = [...subjects];
+      const existingAssignmentKeys = new Set(
+        prev.assignments.map(a => getAssignmentKey(a.subjectId, a.title, a.dueDate))
+      );
 
-    for (const parsed of parsedAssignments) {
-      let subjectId = "";
-      let finalSubjectName = "Unknown Subject";
+      const tempSubjects = [...prev.subjects];
 
-      if (parsed.subjectCode) {
-        const cleanCode = parsed.subjectCode.trim().toUpperCase();
-        const existingSubject = tempSubjects.find(s => s.code.trim().toUpperCase() === cleanCode);
+      for (const parsed of parsedAssignments) {
+        let subjectId = "";
+        let finalSubjectName = "Unknown Subject";
 
-        if (existingSubject) {
-          subjectId = existingSubject.id;
-          finalSubjectName = existingSubject.name;
-        } else {
-          // We need to create a new subject
-          finalSubjectName = parsed.subjectName || `Subject ${cleanCode}`;
-          const newSubjectId = createSubjectId(finalSubjectName);
+        if (parsed.subjectCode) {
+          const cleanCode = parsed.subjectCode.trim().toUpperCase();
+          const existingSubject = tempSubjects.find(s => s.subjectCode.trim().toUpperCase() === cleanCode);
 
-          const newSub = {
-            id: newSubjectId,
-            name: finalSubjectName,
-            code: parsed.subjectCode.trim(),
-          };
-
-          newSubjectsToAdd.push(newSub);
-          tempSubjects.push(newSub); // Add to temp so subsequent items in this loop find it
-          subjectId = newSubjectId;
-        }
-      } else {
-        // No subject code provided in the parsed row. We could try by name, or just use a generic fallback.
-        // For simplicity, let's look for exact name match, otherwise use a generic 'Unknown' (or create one).
-        const nameToFind = parsed.subjectName ? parsed.subjectName.trim().toLowerCase() : "";
-        const existingByName = tempSubjects.find(s => s.name.toLowerCase() === nameToFind);
-        if (existingByName) {
-          subjectId = existingByName.id;
-          finalSubjectName = existingByName.name;
-        } else if (parsed.subjectName) {
-          finalSubjectName = parsed.subjectName.trim();
-          const newSubjectId = createSubjectId(finalSubjectName);
-          const newSub = {
-            id: newSubjectId,
-            name: finalSubjectName,
-            code: "UNKNOWN",
-          };
-          newSubjectsToAdd.push(newSub);
-          tempSubjects.push(newSub);
-          subjectId = newSubjectId;
-        } else {
-          // completely unknown
-          // Lets see if we have an "Unknown Subject" already
-          const unknownSub = tempSubjects.find(s => s.code === "UNKNOWN" && s.name === "Unknown Subject");
-          if (unknownSub) {
-            subjectId = unknownSub.id;
+          if (existingSubject) {
+            subjectId = existingSubject.id;
+            finalSubjectName = existingSubject.subjectName;
           } else {
-            const newSubjectId = createSubjectId("Unknown Subject");
+            // We need to create a new subject
+            finalSubjectName = parsed.subjectName || `Subject ${cleanCode}`;
+            const newSubjectId = createSubjectId(finalSubjectName);
+
             const newSub = {
               id: newSubjectId,
-              name: "Unknown Subject",
-              code: "UNKNOWN",
+              subjectName: finalSubjectName,
+              subjectCode: parsed.subjectCode.trim(),
+              createdAt: now
+            };
+
+            newSubjectsToAdd.push(newSub);
+            tempSubjects.push(newSub); // Add to temp so subsequent items in this loop find it
+            subjectId = newSubjectId;
+          }
+        } else {
+          // No subject code provided in the parsed row. 
+          const nameToFind = parsed.subjectName ? parsed.subjectName.trim().toLowerCase() : "";
+          const existingByName = tempSubjects.find(s => s.subjectName.toLowerCase() === nameToFind);
+          if (existingByName) {
+            subjectId = existingByName.id;
+            finalSubjectName = existingByName.subjectName;
+          } else if (parsed.subjectName) {
+            finalSubjectName = parsed.subjectName.trim();
+            const newSubjectId = createSubjectId(finalSubjectName);
+            const newSub = {
+              id: newSubjectId,
+              subjectName: finalSubjectName,
+              subjectCode: "UNKNOWN",
+              createdAt: now
             };
             newSubjectsToAdd.push(newSub);
             tempSubjects.push(newSub);
             subjectId = newSubjectId;
+          } else {
+            // completely unknown
+            const unknownSub = tempSubjects.find(s => s.subjectCode === "UNKNOWN" && s.subjectName === "Unknown Subject");
+            if (unknownSub) {
+              subjectId = unknownSub.id;
+            } else {
+              const newSubjectId = createSubjectId("Unknown Subject");
+              const newSub = {
+                id: newSubjectId,
+                subjectName: "Unknown Subject",
+                subjectCode: "UNKNOWN",
+                createdAt: now
+              };
+              newSubjectsToAdd.push(newSub);
+              tempSubjects.push(newSub);
+              subjectId = newSubjectId;
+            }
           }
         }
+
+        // Deduplication check
+        const assignmentKey = getAssignmentKey(subjectId, parsed.title, parsed.dueDate);
+        if (existingAssignmentKeys.has(assignmentKey)) {
+          continue; // Skip this one, it already exists
+        }
+
+        // Add it
+        const newAssignmentId = `assignment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+        newAssignmentsToAdd.push({
+          id: newAssignmentId,
+          title: parsed.title.trim(),
+          subjectId: subjectId,
+          dueDate: parsed.dueDate || null,
+          status: "TODO",
+          createdAt: now,
+        });
+
+        newActivityToAdd.push({
+          id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          assignmentId: newAssignmentId,
+          type: "assignment_created",
+          title: parsed.title.trim(),
+          subjectName: finalSubjectName,
+          createdAt: now,
+          dueDate: parsed.dueDate || "",
+          status: getAssignmentStatus(parsed.dueDate || "", false),
+        });
+
+        // Add to existing keys to prevent duplicates *within* the bulk import itself
+        existingAssignmentKeys.add(assignmentKey);
       }
 
-      // Deduplication check
-      const assignmentKey = getAssignmentKey(subjectId, parsed.title, parsed.dueDate);
-      if (existingAssignmentKeys.has(assignmentKey)) {
-        continue; // Skip this one, it already exists
+      if (newActivityToAdd.length > 0) {
+        setActivity(act => [...newActivityToAdd, ...act].slice(0, 8));
       }
 
-      // Add it
-      const newAssignmentId = `assignment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-      newAssignmentsToAdd.push({
-        id: newAssignmentId,
-        title: parsed.title.trim(),
-        subjectId: subjectId,
-        subject: finalSubjectName,
-        dueDate: parsed.dueDate || "",
-        isCompleted: false,
-        score: "",
-        createdAt: now,
-      });
-
-      newActivityToAdd.push({
-        id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        assignmentId: newAssignmentId,
-        type: "assignment_created",
-        title: parsed.title.trim(),
-        subjectName: finalSubjectName,
-        createdAt: now,
-        dueDate: parsed.dueDate || "",
-        status: getAssignmentStatus(parsed.dueDate || "", false),
-      });
-
-      // Add to existing keys to prevent duplicates *within* the bulk import itself
-      existingAssignmentKeys.add(assignmentKey);
-    }
-
-    if (newSubjectsToAdd.length > 0) {
-      setSubjects(prev => [...prev, ...newSubjectsToAdd]);
-    }
-
-    if (newAssignmentsToAdd.length > 0) {
-      setAssignments(prev => [...newAssignmentsToAdd, ...prev]);
-      setActivity(prev => [...newActivityToAdd, ...prev].slice(0, 8));
-    }
+      if (newAssignmentsToAdd.length > 0 || newSubjectsToAdd.length > 0) {
+        return {
+          ...prev,
+          subjects: [...prev.subjects, ...newSubjectsToAdd],
+          assignments: [...newAssignmentsToAdd, ...prev.assignments] // append new assignments first
+        };
+      }
+      return prev;
+    });
   };
 
   const addAssignment = (assignmentData: AddAssignmentInput) => {
-    const relatedSubject = subjects.find(
-      (sub) => sub.id === assignmentData.subjectId,
-    );
-    const subjectName = relatedSubject?.name ?? "Unknown Subject";
     const now = new Date().toISOString();
     const newAssignmentId = `assignment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    let subjectName = "Unknown Subject";
 
-    setAssignments((previousAssignments) => [
-      {
+    setPlannerData(prev => {
+      const relatedSubject = prev.subjects.find(
+        (sub) => sub.id === assignmentData.subjectId,
+      );
+      subjectName = relatedSubject?.subjectName ?? "Unknown Subject";
+
+      const newAssignment: import("@/lib/plannerData").Assignment = {
         id: newAssignmentId,
         title: assignmentData.title.trim(),
         subjectId: assignmentData.subjectId,
-        subject: subjectName,
-        dueDate: assignmentData.dueDate,
-        isCompleted: assignmentData.isCompleted,
-        score: assignmentData.score,
+        dueDate: assignmentData.dueDate || null,
+        status: assignmentData.isCompleted ? "DONE" : "TODO",
         createdAt: now,
-      },
-      ...previousAssignments,
-    ]);
+      };
+
+      return {
+        ...prev,
+        assignments: [newAssignment, ...prev.assignments]
+      };
+    });
 
     setActivity((previousActivity) => {
-      const newActivity: ActivityItem = {
+      const newActivityItem: ActivityItem = {
         id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         assignmentId: newAssignmentId,
         type: "assignment_created",
@@ -392,85 +431,125 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
         dueDate: assignmentData.dueDate,
         status: getAssignmentStatus(assignmentData.dueDate, assignmentData.isCompleted),
       };
-      return [newActivity, ...previousActivity].slice(0, 8);
+      return [newActivityItem, ...previousActivity].slice(0, 8);
     });
   };
 
   const updateAssignment = (id: string, updatedData: Partial<AssignmentItem>) => {
-    setAssignments((previousAssignments) =>
-      previousAssignments.map((assignment) =>
-        assignment.id === id
-          ? {
-            ...assignment,
-            ...updatedData,
-            // Update subject name if subjectId changes
-            subject:
-              updatedData.subjectId && updatedData.subjectId !== assignment.subjectId
-                ? subjects.find((c) => c.id === updatedData.subjectId)?.name ?? "Unknown Subject"
-                : updatedData.subject ?? assignment.subject,
-          }
-          : assignment,
-      ),
-    );
+    setPlannerData(prev => ({
+      ...prev,
+      assignments: prev.assignments.map(a => {
+        if (a.id === id) {
+          return {
+            ...a,
+            // Apply the matching mapped properties to the new model
+            title: updatedData.title !== undefined ? updatedData.title : a.title,
+            subjectId: updatedData.subjectId !== undefined ? updatedData.subjectId : a.subjectId,
+            dueDate: updatedData.dueDate !== undefined ? updatedData.dueDate : a.dueDate,
+            status: updatedData.isCompleted !== undefined ? (updatedData.isCompleted ? "DONE" : "TODO") : a.status
+          };
+        }
+        return a;
+      })
+    }));
   };
 
   const toggleAssignmentCompletion = (id: string) => {
-    let updatedAssignment: AssignmentItem | undefined;
+    let affectedAssignmentTitle = "";
+    let affectedSubjectName = "";
+    let affectedDueDate = "";
+    let newCompletedState = false;
 
-    setAssignments((previousAssignments) =>
-      previousAssignments.map((assignment) => {
-        if (assignment.id === id) {
-          updatedAssignment = {
-            ...assignment,
-            isCompleted: !assignment.isCompleted,
+    setPlannerData(prev => {
+      const mappedAssignments = prev.assignments.map(a => {
+        if (a.id === id) {
+          newCompletedState = a.status !== "DONE";
+          affectedAssignmentTitle = a.title;
+          affectedDueDate = a.dueDate || "";
+
+          const sub = prev.subjects.find(s => s.id === a.subjectId);
+          affectedSubjectName = sub ? sub.subjectName : "Unknown Subject";
+
+          return {
+            ...a,
+            status: newCompletedState ? "DONE" : "TODO" as "DONE" | "TODO" | "IN_PROGRESS"
           };
-          return updatedAssignment;
         }
-        return assignment;
-      }),
-    );
-
-    if (updatedAssignment) {
-      setActivity((previousActivity) => {
-        const now = new Date().toISOString();
-        const actionType = updatedAssignment!.isCompleted ? "assignment_completed" : "assignment_uncompleted";
-
-        const newActivity: ActivityItem = {
-          id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          assignmentId: updatedAssignment!.id,
-          type: actionType,
-          title: updatedAssignment!.title,
-          subjectName: updatedAssignment!.subject,
-          createdAt: now,
-          dueDate: updatedAssignment!.dueDate,
-          status: getAssignmentStatus(updatedAssignment!.dueDate, updatedAssignment!.isCompleted),
-        };
-        return [newActivity, ...previousActivity].slice(0, 8);
+        return a;
       });
-    }
+
+      return { ...prev, assignments: mappedAssignments };
+    });
+
+    // Timeout hack to wait for React to process the state above and grab correct title if undefined, 
+    // but in realistic scenarios title/date are always grabbed cleanly from the map map due to closures capturing correctly in next render?
+    // Actually using those closure-based vars works immediately.
+    setTimeout(() => {
+      if (affectedAssignmentTitle) {
+        setActivity((previousActivity) => {
+          const now = new Date().toISOString();
+          const actionType = newCompletedState ? "assignment_completed" : "assignment_uncompleted";
+
+          const newActivityItem: ActivityItem = {
+            id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            assignmentId: id,
+            type: actionType,
+            title: affectedAssignmentTitle,
+            subjectName: affectedSubjectName,
+            createdAt: now,
+            dueDate: affectedDueDate,
+            status: getAssignmentStatus(affectedDueDate, newCompletedState),
+          };
+          return [newActivityItem, ...previousActivity].slice(0, 8);
+        });
+      }
+    }, 0);
   };
 
   const resetData = () => {
-    localStorage.removeItem("assignment-tracker-data");
-    setSubjects(initialSubjects);
-    setAssignments(initialAssignments);
-    setActivity(initialActivity);
+    resetLocalPlannerData();
+    localStorage.removeItem("studyPlannerActivity:v1");
+    localStorage.removeItem("assignment-tracker-data"); // cleanup legacy 
+    setPlannerData(createEmptyPlannerData());
+    setActivity(initialActivity); // Set back to minimal defaults
   };
 
   const exportData = (): string => {
-    return JSON.stringify({ subjects, assignments, activity });
+    return JSON.stringify({ plannerData, activity });
   };
 
   const importData = (jsonString: string): boolean => {
     try {
       const parsed = JSON.parse(jsonString);
-      // Support old 'courses' arrays on import for backwards compat
-      const importedSubjects = parsed.subjects || parsed.courses;
 
+      // Handle importing an exported package that contains both plannerData and activity
+      if (parsed.plannerData && parsed.plannerData.subjects && parsed.plannerData.assignments) {
+        setPlannerData(parsed.plannerData);
+        if (parsed.activity) setActivity(parsed.activity);
+        return true;
+      }
+
+      // Legacy backwards-compatibility
+      const importedSubjects = parsed.subjects || parsed.courses;
       if (Array.isArray(importedSubjects) && Array.isArray(parsed.assignments) && Array.isArray(parsed.activity)) {
+        const newData = createEmptyPlannerData();
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setSubjects(importedSubjects.map((s: any) => ({ ...s, code: s.code || "UNKNOWN" })));
-        setAssignments(parsed.assignments);
+        newData.subjects = importedSubjects.map((s: any) => ({
+          id: s.id,
+          subjectCode: s.code || "UNKNOWN",
+          subjectName: s.name,
+          createdAt: new Date().toISOString()
+        }));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        newData.assignments = parsed.assignments.map((a: any) => ({
+          id: a.id,
+          subjectId: a.subjectId || a.courseId,
+          title: a.title,
+          dueDate: a.dueDate || null,
+          status: a.isCompleted ? "DONE" : "TODO",
+          createdAt: a.createdAt || new Date().toISOString()
+        }));
+        setPlannerData(newData);
         setActivity(parsed.activity);
         return true;
       }
