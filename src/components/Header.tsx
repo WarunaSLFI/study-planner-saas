@@ -135,7 +135,7 @@ export default function Header({ title }: HeaderProps) {
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-lg font-bold text-white">
                   {initials}
                 </span>
-                <span className="max-w-[200px] truncate">{displayName}</span>
+                <span className="max-w-[150px] truncate hidden sm:inline-block md:max-w-[200px]">{displayName}</span>
                 <svg className={`h-5 w-5 text-slate-400 transition ${dropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
