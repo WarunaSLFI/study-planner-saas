@@ -99,7 +99,7 @@ function SubjectModal({ isOpen, onClose, onAddSubject, onEditSubject, existingSu
             type="button"
             onClick={handleClose}
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-lg font-medium text-slate-600 transition hover:bg-slate-50"
- >
+          >
             Close
           </button>
         </div>
@@ -120,7 +120,7 @@ function SubjectModal({ isOpen, onClose, onAddSubject, onEditSubject, existingSu
               value={subjectName}
               onChange={(event) => setSubjectName(event.target.value)}
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
- />
+            />
           </label>
           <label className="block">
             <span className="mb-2 block text-lg font-medium text-slate-600">
@@ -132,7 +132,7 @@ function SubjectModal({ isOpen, onClose, onAddSubject, onEditSubject, existingSu
               value={subjectCode}
               onChange={(event) => setSubjectCode(event.target.value)}
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
- />
+            />
           </label>
 
           <div className="flex items-center justify-end gap-3">
@@ -140,13 +140,13 @@ function SubjectModal({ isOpen, onClose, onAddSubject, onEditSubject, existingSu
               type="button"
               onClick={handleClose}
               className="rounded-xl border border-slate-300 px-4 py-2 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
- >
+            >
               Cancel
             </button>
             <button
               type="submit"
               className="rounded-xl bg-slate-900 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700"
- >
+            >
               {isEditing ? "Save Changes" : "Add Subject"}
             </button>
           </div>
@@ -224,7 +224,7 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
             type="button"
             onClick={handleClose}
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-lg font-medium text-slate-600 transition hover:bg-slate-50"
- >
+          >
             Close
           </button>
         </div>
@@ -234,16 +234,16 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
             <p className="mb-2 text-slate-600">Copy and paste your subject list from your university website directly into the box below. We will attempt to automatically extract the Subject Name and Subject Code.</p>
             <textarea
               className="w-full h-64 rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 resize-none placeholder:text-slate-400"
- placeholder="Paste your subject list here..."
- value={pastedText}
- onChange={(e) => setPastedText(e.target.value)}
+              placeholder="Paste your subject list here..."
+              value={pastedText}
+              onChange={(e) => setPastedText(e.target.value)}
             />
             <div className="mt-4 flex justify-end">
               <button
                 onClick={handleParse}
                 disabled={!pastedText.trim()}
                 className="rounded-xl bg-slate-900 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
- >
+              >
                 Parse
               </button>
             </div>
@@ -251,7 +251,7 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
         ) : (
           <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
             <p className="mb-4 text-slate-600">Review the parsed subjects below. You can uncheck items or double-click text to edit.</p>
-            <div className="flex-1 overflow-y-auto border border-slate-200 rounded-lg">
+            <div className="flex-1 overflow-auto overflow-x-auto border border-slate-200 rounded-lg">
               <table className="min-w-full divide-y divide-slate-200 text-left">
                 <thead className="bg-slate-50 sticky top-0">
                   <tr>
@@ -272,8 +272,8 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
                           <input
                             type="checkbox"
                             className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
- checked={row.checked}
- onChange={(e) => {
+                            checked={row.checked}
+                            onChange={(e) => {
                               setParsedRows((prev) => prev.map((r) => r.id === row.id ? { ...r, checked: e.target.checked } : r));
                             }}
                           />
@@ -284,7 +284,7 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
                             value={row.name}
                             onChange={(e) => setParsedRows((prev) => prev.map((r) => r.id === row.id ? { ...r, name: e.target.value } : r))}
                             className="w-full border-0 bg-transparent p-0 text-slate-900 focus:ring-0"
- />
+                          />
                         </td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
@@ -293,7 +293,7 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
                               value={row.code}
                               onChange={(e) => setParsedRows((prev) => prev.map((r) => r.id === row.id ? { ...r, code: e.target.value } : r))}
                               className="w-full border-0 bg-transparent p-0 text-slate-900 font-mono focus:ring-0 font-medium"
- />
+                            />
                             {row.isNew ? (
                               <span className="inline-flex rounded-full bg-green-50 px-2 py-0.5 text-lg font-semibold text-green-700 ring-1 ring-inset ring-green-200">
                                 New
@@ -316,14 +316,14 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
               <button
                 onClick={() => setView("paste")}
                 className="rounded-xl border border-slate-300 px-4 py-2 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
- >
+              >
                 Back to Paste
               </button>
               <button
                 onClick={handleImport}
                 disabled={parsedRows.length === 0 || !parsedRows.some(r => r.checked)}
                 className="rounded-xl bg-indigo-600 px-4 py-2 text-lg font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
- >
+              >
                 Import Selected
               </button>
             </div>
@@ -401,7 +401,7 @@ export default function SubjectsPage() {
               type="button"
               onClick={() => setIsImportModalOpen(true)}
               className="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-2 text-lg font-semibold text-slate-700 transition hover:bg-slate-50"
- >
+            >
               Import Subjects
             </button>
             <button
@@ -411,7 +411,7 @@ export default function SubjectsPage() {
                 setIsAddModalOpen(true);
               }}
               className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700"
- >
+            >
               Add Subject
             </button>
           </div>
@@ -428,7 +428,7 @@ export default function SubjectsPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search subjects by name or code…  ( / )"
               className="w-full rounded-xl border border-slate-300 bg-transparent px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 placeholder:text-slate-400"
- />
+            />
           </label>
           <span className="text-lg text-slate-500 whitespace-nowrap">
             Showing {filteredSubjects.length} of {subjects.length} subjects
@@ -469,7 +469,7 @@ export default function SubjectsPage() {
                         <Link
                           href={`/app/subjects/${subject.id}`}
                           className="hover:underline decoration-slate-300 underline-offset-2"
- >
+                        >
                           {highlightText(subject.name, searchQuery.trim())}
                         </Link>
                       </td>
@@ -485,14 +485,14 @@ export default function SubjectsPage() {
                             type="button"
                             onClick={() => handleEditClick(subject)}
                             className="rounded-lg border border-slate-300 px-3 py-1.5 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
- >
+                          >
                             Edit
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDeleteClick(subject)}
                             className="rounded-lg border border-rose-200 px-3 py-1.5 text-lg font-medium text-rose-600 transition hover:bg-rose-50"
- >
+                          >
                             Delete
                           </button>
                         </div>
