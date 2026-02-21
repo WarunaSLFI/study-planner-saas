@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function MarketingPage() {
   return (
     <main className="flex min-h-screen items-center justify-center px-6">
@@ -6,12 +8,12 @@ export default function MarketingPage() {
           Study Planner SaaS
         </h1>
         <p className="mt-4 text-lg text-slate-600">Plan smarter. Study better.</p>
-        <button
-          type="button"
-          className="mt-8 rounded-xl bg-slate-900 px-6 py-3 text-lg font-semibold text-white transition hover:bg-slate-700"
+        <Link
+          href="/app/dashboard"
+          className="mt-8 inline-block rounded-xl bg-slate-900 px-6 py-3 text-lg font-semibold text-white transition hover:bg-slate-700"
         >
           Enter App
-        </button>
+        </Link>
       </section>
     </main>
   );
