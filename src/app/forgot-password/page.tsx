@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
         <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
             <div className="w-full max-w-md">
                 <div className="mb-4">
-                    <Link href="/" className="text-lg font-medium text-slate-500 transition hover:text-slate-900">
+                    <Link href="/" className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5 text-lg font-medium text-slate-700 transition hover:bg-slate-200">
                         &larr; Back to Home
                     </Link>
                 </div>
@@ -64,8 +64,8 @@ export default function ForgotPasswordPage() {
                             </p>
                             <Link
                                 href="/login"
-                                className="mt-6 inline-block rounded-xl bg-slate-900 px-6 py-2.5 text-lg font-semibold text-white transition hover:bg-slate-700"
- >
+                                className="mt-6 inline-block rounded-xl bg-slate-100 border border-slate-300 px-6 py-2.5 text-lg font-semibold text-slate-700 transition hover:bg-slate-200"
+                            >
                                 Back to Sign In
                             </Link>
                         </div>
@@ -92,14 +92,14 @@ export default function ForgotPasswordPage() {
                                         onChange={(e) => setEmail(e.target.value)}
                                         placeholder="you@example.com"
                                         className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
- />
+                                    />
                                 </label>
 
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-lg font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
- >
+                                    className="w-full rounded-xl bg-slate-100 border border-slate-300 px-4 py-2.5 text-lg font-semibold text-slate-700 transition hover:bg-slate-200 disabled:opacity-50"
+                                >
                                     {loading ? "Sending…" : "Send reset link"}
                                 </button>
                             </form>

@@ -87,7 +87,7 @@ export default function ResetPasswordPage() {
                                         placeholder="••••••••"
                                         minLength={6}
                                         className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
- />
+                                    />
                                 </label>
 
                                 <label className="block">
@@ -100,14 +100,14 @@ export default function ResetPasswordPage() {
                                         placeholder="••••••••"
                                         minLength={6}
                                         className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
- />
+                                    />
                                 </label>
 
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-lg font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
- >
+                                    className="w-full rounded-xl bg-slate-100 border border-slate-300 px-4 py-2.5 text-lg font-semibold text-slate-700 transition hover:bg-slate-200 disabled:opacity-50"
+                                >
                                     {loading ? "Updating…" : "Update Password"}
                                 </button>
                             </form>

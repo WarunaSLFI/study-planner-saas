@@ -25,8 +25,8 @@ export default function MarketingPage() {
             </p>
             <Link
               href="/app/dashboard"
-              className="mt-8 inline-block rounded-xl bg-slate-900 px-8 py-3 text-lg font-semibold text-white transition hover:bg-slate-700"
- >
+              className="mt-8 inline-block rounded-xl bg-slate-100 border border-slate-300 px-8 py-3 text-lg font-semibold text-slate-700 transition hover:bg-slate-200"
+            >
               Get Started — It&apos;s Free
             </Link>
           </div>
