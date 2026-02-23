@@ -234,9 +234,16 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
       } else {
         alert("AI could not find any subjects in this image. Try another one or paste text.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("AI OCR failed:", err);
-      alert("Failed to process image with AI. Please try again or paste text manually.");
+      const message = err.message || "";
+      if (message.includes("SERVER_ENV_MISSING")) {
+        alert("Configuration Error: The OpenAI API Key is missing on the server. Please add OPENAI_API_KEY to your Vercel Environment Variables.");
+      } else if (message.includes("413") || message.includes("too large")) {
+        alert("Image too large: Please try a smaller screenshot or compress the image.");
+      } else {
+        alert("AI Processing Failed: " + (message || "Please check your OpenAI balance or try again."));
+      }
     } finally {
       setIsScanning(false);
     }

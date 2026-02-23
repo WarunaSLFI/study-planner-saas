@@ -7,8 +7,9 @@ const openai = new OpenAI({
 });
 
 export async function scanImageWithAI(base64Image: string) {
-    if (!process.env.OPENAI_API_KEY) {
-        throw new Error("OpenAI API Key is not configured on the server.");
+    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "") {
+        console.error("OCR Error: OPENAI_API_KEY is missing in server environment variables.");
+        throw new Error("SERVER_ENV_MISSING: OpenAI API Key is not configured on the deployment server.");
     }
 
     try {
