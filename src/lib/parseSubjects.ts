@@ -22,16 +22,18 @@ export function parseSubjectsFromText(input: string): ParsedSubjectRow[] {
     const codeRegex = /([A-Z0-9]{2,}\d{2,}[A-Z0-9]*(?:-\d{3,5})?)\s+((?:(?![A-Z0-9]{2,}\d{2,}[A-Z0-9]*(?:-\d{3,5})?).)*)/gi;
 
     // Heuristics: if a parsed name ends with noisy OCR fluff or separator chars, strip them
-    const trailingNoiseRegex = /(?:\b\d{1,3}%\s*complete(?:d)?\b.*$|\b(?:course implementations?|course name|course category|course progress|study type|assessor|status)\b.*$|\s*-\s*TAMK\b.*$|~~.*$|@@.*$)/i;
+    const exactNoise = /\b(?:course implementations?|course name|course category|course progress|study type|assessor|status|- TAMK)\b/gi;
+    const percentages = /\b\d{1,3}%\s*complete(?:d)?\b/gi;
 
     const sanitizeName = (name: string) => {
-        let cleaned = normalizeWhitespace(name);
-        cleaned = cleaned.replace(trailingNoiseRegex, "").trim();
+        let cleaned = name.replace(exactNoise, " ").replace(percentages, " ");
+        cleaned = normalizeWhitespace(cleaned);
         cleaned = cleaned.replace(trailingSingleLettersRegex, "").trim();
         cleaned = cleaned.replace(trailingLowercaseAfterNumberRegex, "$1").trim();
         // Remove trailing non-alphanumeric trailing symbols like -, ~, @
-        cleaned = cleaned.replace(/[-~@]+$/, "").trim();
-        return cleaned;
+        cleaned = cleaned.replace(/^[-\~@\s]+/, "").trim(); // leading
+        cleaned = cleaned.replace(/[-~@]+$/, "").trim(); // trailing
+        return normalizeWhitespace(cleaned);
     };
 
     const isLikelyContinuationLine = (line: string) => {
@@ -51,16 +53,16 @@ export function parseSubjectsFromText(input: string): ParsedSubjectRow[] {
         return /^[A-Z]/.test(cleaned) || continuationConnectorRegex.test(cleaned);
     };
 
-    let allowContinuationForLastRow = false;
+    let codesParsedOnLastLine = 0;
 
     for (const line of lines) {
         if (!line) continue;
         if (noiseRegex.test(line)) {
-            allowContinuationForLastRow = false;
+            codesParsedOnLastLine = 0;
             continue;
         }
 
-        let foundCodesOnLine = false;
+        let foundCodesOnLine = 0;
         let match: RegExpExecArray | null;
 
         // Use matchAll or reset lastIndex to find all occurrences
@@ -72,7 +74,7 @@ export function parseSubjectsFromText(input: string): ParsedSubjectRow[] {
             const cleanName = sanitizeName(namePart);
 
             if (code && code.length >= 5 && code.length <= 16) {
-                foundCodesOnLine = true;
+                foundCodesOnLine++;
                 parsedRows.push({
                     name: cleanName || "Unknown Subject",
                     code: code.toUpperCase(),
@@ -80,19 +82,36 @@ export function parseSubjectsFromText(input: string): ParsedSubjectRow[] {
             }
         }
 
-        if (foundCodesOnLine) {
-            allowContinuationForLastRow = true;
+        if (foundCodesOnLine > 0) {
+            codesParsedOnLastLine = foundCodesOnLine;
             continue;
         }
 
         const cleanName = sanitizeName(line);
         if (!cleanName || cleanName.length <= 2) {
-            allowContinuationForLastRow = false;
+            codesParsedOnLastLine = 0;
             continue;
         }
 
-        if (parsedRows.length > 0 && allowContinuationForLastRow && isLikelyContinuationLine(cleanName)) {
+        if (parsedRows.length > 0 && codesParsedOnLastLine === 1 && isLikelyContinuationLine(cleanName)) {
             parsedRows[parsedRows.length - 1].name = sanitizeName(parsedRows[parsedRows.length - 1].name + " " + cleanName);
+            continue;
+        } else if (parsedRows.length > 0 && codesParsedOnLastLine > 1) {
+            // Multi-column continuation! Use the raw line (with noise removed) to split by larger visual gaps (>= 2 spaces)
+            const chunks = line.replace(exactNoise, " ").replace(percentages, " ").split(/\s{2,}/).map(s => s.trim()).filter(s => s);
+
+            // Distribute these chunks to the last N parsed subjects, aligning them rightwards.
+            // E.g. if we have 3 subjects, and 2 trailing chunks, they likely belong to col 2 and col 3.
+            const rowsToUpdate = parsedRows.slice(-codesParsedOnLastLine);
+            const offset = Math.max(0, codesParsedOnLastLine - chunks.length);
+
+            for (let i = 0; i < chunks.length; i++) {
+                const targetRow = rowsToUpdate[offset + i];
+                const sanitizedChunk = sanitizeName(chunks[i]);
+                if (targetRow && sanitizedChunk && sanitizedChunk.length > 2) {
+                    targetRow.name = sanitizeName(targetRow.name + " " + sanitizedChunk);
+                }
+            }
             continue;
         }
 
@@ -104,7 +123,7 @@ export function parseSubjectsFromText(input: string): ParsedSubjectRow[] {
             });
         }
 
-        allowContinuationForLastRow = false;
+        codesParsedOnLastLine = 0;
     }
 
     return parsedRows;
