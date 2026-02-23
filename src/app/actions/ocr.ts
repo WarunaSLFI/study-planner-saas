@@ -14,8 +14,8 @@ export async function scanImageWithAI(base64Image: string) {
     }
 
     try {
-        // Using gemini-1.5-flash as it is faster and cheaper for OCR tasks
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // Using gemini-1.5-flash-latest for better compatibility with different API versions
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
         const prompt = "You are an expert OCR assistant. Your goal is to extract study subjects from an image. Look for subject codes (e.g., 5G00DL96-3014) and their names. Ignore multiple duplicate rows representing 'implementations' if they refer to the same course. Return ONLY a raw JSON array of objects with 'name' and 'code' properties inside a 'subjects' key. Do not include markdown formatting or backticks.";
 
