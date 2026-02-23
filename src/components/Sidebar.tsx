@@ -27,8 +27,8 @@ export default function Sidebar() {
 
         <div className="mt-auto border-t border-slate-100 p-4">
           <div className="flex items-center justify-between px-2">
-            <span className="text-lg font-bold text-slate-400 uppercase tracking-widest">Version</span>
-            <span className="text-lg font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
+            <span className="text-lg font-medium text-slate-400 uppercase tracking-widest">Version</span>
+            <span className="text-lg font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
               v{pkg.version}
             </span>
           </div>
