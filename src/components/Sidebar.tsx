@@ -1,4 +1,5 @@
 import NavLink from "@/components/NavLink";
+import pkg from "../../package.json";
 
 export const navigationItems = [
   { href: "/app/dashboard", label: "Dashboard" },
@@ -18,11 +19,20 @@ export default function Sidebar() {
           </span>
         </div>
 
-        <nav className="space-y-1 p-4 text-lg font-medium">
+        <nav className="flex-1 space-y-1 p-4 text-lg font-medium">
           {navigationItems.map((item) => (
             <NavLink key={item.href} href={item.href} label={item.label} />
           ))}
         </nav>
+
+        <div className="mt-auto border-t border-slate-100 p-4">
+          <div className="flex items-center justify-between px-2">
+            <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">Version</span>
+            <span className="text-sm font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
+              v{pkg.version}
+            </span>
+          </div>
+        </div>
       </div>
     </aside>
   );
