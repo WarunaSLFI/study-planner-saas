@@ -65,8 +65,8 @@ export default function SubjectDetailsPage() {
                     </p>
                     <Link
                         href="/app/courses"
-                        className="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700"
- >
+                        className="inline-flex items-center rounded-xl bg-slate-100 border border-slate-300 px-4 py-2 text-lg font-semibold text-slate-700 transition hover:bg-slate-200"
+                    >
                         &larr; Back to Subjects
                     </Link>
                 </section>
@@ -85,7 +85,7 @@ export default function SubjectDetailsPage() {
                         <Link
                             href="/app/courses"
                             className="text-lg font-medium text-slate-500 transition hover:text-slate-700"
- >
+                        >
                             &larr; All Subjects
                         </Link>
                         <h1 className="mt-1 text-2xl font-bold text-slate-900">{subject.name}</h1>
@@ -99,8 +99,8 @@ export default function SubjectDetailsPage() {
                             setEditingAssignment(null);
                             setIsModalOpen(true);
                         }}
-                        className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700"
- >
+                        className="inline-flex items-center justify-center rounded-xl bg-slate-100 border border-slate-300 px-4 py-2 text-lg font-semibold text-slate-700 transition hover:bg-slate-200"
+                    >
                         Add Assignment
                     </button>
                 </div>
@@ -123,7 +123,7 @@ export default function SubjectDetailsPage() {
                     <Link
                         href="/app/tasks"
                         className="inline-flex items-center rounded-xl border border-slate-300 px-4 py-2 text-lg font-semibold text-slate-700 transition hover:bg-slate-50"
- >
+                    >
                         Go to Assignments
                     </Link>
                 </section>
