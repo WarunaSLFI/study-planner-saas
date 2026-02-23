@@ -13,7 +13,7 @@ export default function Sidebar() {
     <aside className="hidden md:flex w-full flex-col border-b border-slate-200 bg-white md:fixed md:inset-y-0 md:left-0 md:w-64 md:border-b-0 md:border-r">
       <div className="flex h-full flex-col">
         <div className="flex h-16 items-center border-b border-slate-200 px-6">
-          <span className="text-2xl font-semibold text-slate-900">
+          <span className="text-2xl font-semibold text-slate-700">
             Study Planner
           </span>
         </div>

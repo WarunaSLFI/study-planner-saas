@@ -134,14 +134,14 @@ export default function AssignmentModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
       <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-900">
+          <h3 className="text-lg font-semibold text-slate-700">
             {existingAssignment ? "Edit Assignment" : "Add Assignment"}
           </h3>
           <button
             type="button"
             onClick={handleClose}
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-lg font-medium text-slate-600 transition hover:bg-slate-50"
- >
+          >
             Close
           </button>
         </div>
@@ -157,8 +157,8 @@ export default function AssignmentModal({
                 type="text"
                 value={form.title}
                 onChange={(event) => updateField("title", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
- />
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-700 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+              />
             </label>
 
             <label className="block">
@@ -169,8 +169,8 @@ export default function AssignmentModal({
                 required
                 value={form.subjectId}
                 onChange={(event) => updateField("subjectId", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
- >
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-700 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+              >
                 {subjects.length === 0 ? (
                   <option value="">No subjects available</option>
                 ) : null}
@@ -195,8 +195,8 @@ export default function AssignmentModal({
                 type="date"
                 value={form.dueDate}
                 onChange={(event) => updateField("dueDate", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 [color-scheme:light]"
- />
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-700 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 [color-scheme:light]"
+              />
             </label>
 
             <label className="flex items-center gap-3">
@@ -204,8 +204,8 @@ export default function AssignmentModal({
                 type="checkbox"
                 checked={form.isCompleted}
                 onChange={(event) => updateField("isCompleted", event.target.checked)}
-                className="h-6 w-6 rounded border-slate-300 bg-white text-slate-900 transition focus:ring-slate-500"
- />
+                className="h-6 w-6 rounded border-slate-300 bg-white text-slate-700 transition focus:ring-slate-500"
+              />
               <span className="text-lg font-medium text-slate-600">
                 Mark as Completed
               </span>
@@ -221,8 +221,8 @@ export default function AssignmentModal({
               onChange={(event) => updateField("notes", event.target.value)}
               rows={3}
               placeholder="Add any additional notes here..."
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 resize-none placeholder:text-slate-400"
- />
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-700 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 resize-none placeholder:text-slate-400"
+            />
           </label>
 
           <div className="flex items-center justify-end gap-3">
@@ -230,14 +230,14 @@ export default function AssignmentModal({
               type="button"
               onClick={handleClose}
               className="rounded-xl border border-slate-300 px-4 py-2 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
- >
+            >
               Cancel
             </button>
             <button
               type="submit"
               disabled={subjects.length === 0}
-              className="rounded-xl bg-slate-900 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700"
- >
+              className="rounded-xl bg-slate-600 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700"
+            >
               {existingAssignment ? "Save Changes" : "Add Assignment"}
             </button>
           </div>

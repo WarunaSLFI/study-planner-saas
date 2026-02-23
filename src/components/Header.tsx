@@ -123,7 +123,7 @@ export default function Header({ title }: HeaderProps) {
               </svg>
             </button>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold text-slate-900">{resolvedTitle}</h1>
+              <h1 className="text-2xl font-semibold text-slate-700">{resolvedTitle}</h1>
               <span className="text-sm font-medium rounded-full bg-slate-100 px-2 py-0.5 text-slate-600 border border-slate-200">
                 v{pkg.version}
               </span>
@@ -138,7 +138,7 @@ export default function Header({ title }: HeaderProps) {
                 onClick={() => setDropdownOpen(prev => !prev)}
                 className="inline-flex items-center gap-2.5 rounded-full border border-slate-200 bg-white pl-1.5 pr-3.5 py-1 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
               >
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-lg font-bold text-white">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-600 text-lg font-bold text-white">
                   {initials}
                 </span>
                 <span className="max-w-[150px] truncate hidden sm:inline-block md:max-w-[200px]">{displayName}</span>
@@ -151,7 +151,7 @@ export default function Header({ title }: HeaderProps) {
               {dropdownOpen && (
                 <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-slate-200 bg-white py-1.5 shadow-lg z-50">
                   <div className="px-4 py-2.5 border-b border-slate-100">
-                    <p className="text-lg font-medium text-slate-900 truncate">{displayName}</p>
+                    <p className="text-lg font-medium text-slate-700 truncate">{displayName}</p>
                     {firstName && <p className="text-lg text-slate-500 truncate">{userEmail}</p>}
                   </div>
                   <button
@@ -187,7 +187,7 @@ export default function Header({ title }: HeaderProps) {
           <div className="fixed inset-0 bg-slate-900/40 transition-opacity" onClick={() => setMobileMenuOpen(false)} />
           <div className="relative flex w-64 flex-col bg-white shadow-xl h-full transform transition-transform">
             <div className="flex h-16 items-center justify-between px-6 border-b border-slate-200">
-              <span className="text-xl font-semibold text-slate-900">Study Planner</span>
+              <span className="text-xl font-semibold text-slate-700">Study Planner</span>
               <button type="button" onClick={() => setMobileMenuOpen(false)} className="p-2 -mr-2 text-slate-500 hover:bg-slate-100 rounded-full">
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -202,7 +202,7 @@ export default function Header({ title }: HeaderProps) {
                     key={item.href}
                     href={item.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`block rounded-lg px-4 py-3 text-lg font-medium transition ${isActive ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}
+                    className={`block rounded-lg px-4 py-3 text-lg font-medium transition ${isActive ? "bg-slate-100 text-slate-700" : "text-slate-600 hover:bg-slate-50 hover:text-slate-700"}`}
                   >
                     {item.label}
                   </Link>
@@ -217,7 +217,7 @@ export default function Header({ title }: HeaderProps) {
       {profileOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-slate-900">Edit Profile</h3>
+            <h3 className="text-lg font-semibold text-slate-700">Edit Profile</h3>
             <p className="mt-1 text-lg text-slate-500">Update your name. This will be displayed in the app header.</p>
 
             <div className="mt-5 space-y-4">
@@ -267,7 +267,7 @@ export default function Header({ title }: HeaderProps) {
                 type="button"
                 onClick={handleSaveProfile}
                 disabled={saving}
-                className="rounded-xl bg-slate-900 px-4 py-2.5 text-lg font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
+                className="rounded-xl bg-slate-600 px-4 py-2.5 text-lg font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
               >
                 {saving ? "Saving…" : "Save"}
               </button>
