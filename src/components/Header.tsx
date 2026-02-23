@@ -142,7 +142,7 @@ export default function Header({ title }: HeaderProps) {
                 onClick={() => setDropdownOpen(prev => !prev)}
                 className="inline-flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white pl-1.5 pr-3.5 py-1 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
               >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-lg font-bold text-slate-700 border border-slate-200">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-sm font-medium text-slate-700 border border-slate-200">
                   {initials}
                 </span>
                 <span className="max-w-[150px] truncate hidden sm:inline-block md:max-w-[200px]">{displayName}</span>
