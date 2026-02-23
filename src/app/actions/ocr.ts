@@ -9,7 +9,10 @@ const openai = new OpenAI({
 export async function scanImageWithAI(base64Image: string) {
     if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "") {
         console.error("OCR Error: OPENAI_API_KEY is missing in server environment variables.");
-        throw new Error("SERVER_ENV_MISSING: OpenAI API Key is not configured on the deployment server.");
+        return {
+            success: false,
+            error: "SERVER_ENV_MISSING: The OpenAI API Key is not configured on the deployment server. Please add OPENAI_API_KEY to your Vercel Environment Variables."
+        };
     }
 
     try {
@@ -18,7 +21,7 @@ export async function scanImageWithAI(base64Image: string) {
             messages: [
                 {
                     role: "system",
-                    content: "You are an expert OCR assistant. Your goal is to extract study subjects from an image. Look for subject codes (e.g., 5G00DL96-3014) and their names. Ignore multiple duplicate rows representing 'implementations' if they refer to the same course. Return ONLY a raw JSON array of objects with 'name' and 'code' properties. Do not include markdown formatting or backticks.",
+                    content: "You are an expert OCR assistant. Your goal is to extract study subjects from an image. Look for subject codes (e.g., 5G00DL96-3014) and their names. Ignore multiple duplicate rows representing 'implementations' if they refer to the same course. Return ONLY a raw JSON array of objects with 'name' and 'code' properties inside a 'subjects' key.",
                 },
                 {
                     role: "user",
@@ -40,19 +43,25 @@ export async function scanImageWithAI(base64Image: string) {
         });
 
         const content = response.choices[0].message.content;
-        if (!content) return [];
+        if (!content) return { success: true, data: [] };
 
-        // OpenAI might return it wrapped in a "subjects" key or similar if we use json_object
         const parsed = JSON.parse(content);
+        let results = [];
 
-        // Normalize to flat array
-        if (Array.isArray(parsed)) return parsed;
-        if (parsed.subjects && Array.isArray(parsed.subjects)) return parsed.subjects;
-        if (parsed.courses && Array.isArray(parsed.courses)) return parsed.courses;
+        if (Array.isArray(parsed)) {
+            results = parsed;
+        } else if (parsed.subjects && Array.isArray(parsed.subjects)) {
+            results = parsed.subjects;
+        } else if (parsed.courses && Array.isArray(parsed.courses)) {
+            results = parsed.courses;
+        }
 
-        return [];
-    } catch (error) {
+        return { success: true, data: results };
+    } catch (error: any) {
         console.error("OpenAI OCR Error:", error);
-        throw new Error("Failed to process image with AI.");
+        return {
+            success: false,
+            error: error.message || "An unexpected error occurred during AI processing."
+        };
     }
 }

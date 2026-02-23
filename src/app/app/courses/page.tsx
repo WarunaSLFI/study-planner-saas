@@ -225,25 +225,28 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
       const base64Image = await base64Promise;
 
       // Call AI OCR
-      const results = await scanImageWithAI(base64Image);
+      const result = await scanImageWithAI(base64Image);
 
-      if (results && results.length > 0) {
-        setParsedRows(processRawRows(results));
+      if (result.success && result.data && result.data.length > 0) {
+        setParsedRows(processRawRows(result.data));
         setView("preview");
         setPastedText(""); // Clear text if we got direct objects
+      } else if (!result.success) {
+        // Show the specific error from the server
+        const message = result.error || "";
+        if (message.includes("SERVER_ENV_MISSING")) {
+          alert("Configuration Error: The OpenAI API Key is missing on the server. Please add OPENAI_API_KEY to your Vercel Environment Variables.");
+        } else if (message.includes("413") || message.includes("too large")) {
+          alert("Image too large: Please try a smaller screenshot or compress the image.");
+        } else {
+          alert("AI Processing Failed: " + (message || "Please check your OpenAI balance or try again."));
+        }
       } else {
         alert("AI could not find any subjects in this image. Try another one or paste text.");
       }
     } catch (err: any) {
-      console.error("AI OCR failed:", err);
-      const message = err.message || "";
-      if (message.includes("SERVER_ENV_MISSING")) {
-        alert("Configuration Error: The OpenAI API Key is missing on the server. Please add OPENAI_API_KEY to your Vercel Environment Variables.");
-      } else if (message.includes("413") || message.includes("too large")) {
-        alert("Image too large: Please try a smaller screenshot or compress the image.");
-      } else {
-        alert("AI Processing Failed: " + (message || "Please check your OpenAI balance or try again."));
-      }
+      console.error("Critical AI OCR failure:", err);
+      alert("A critical system error occurred. Please refresh the page and try again.");
     } finally {
       setIsScanning(false);
     }
