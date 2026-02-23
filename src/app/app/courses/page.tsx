@@ -6,6 +6,7 @@ import { useAppData } from "@/app/app/providers/AppDataProvider";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { parseSubjectsFromText } from "@/lib/parseSubjects";
 import type { SubjectItem } from "@/app/app/providers/AppDataProvider";
+import { scanImageWithAI } from "@/app/actions/ocr";
 
 function highlightText(text: string, query: string): ReactNode {
   if (!query) return text;
@@ -189,22 +190,53 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen]);
 
+  const processRawRows = (rawRows: { name: string; code: string }[]) => {
+    const existingCodes = new Set(existingSubjects.map(s => s.code.trim().toUpperCase()).filter(Boolean));
+    const existingNames = new Set(existingSubjects.map(s => s.name.trim().toLowerCase()));
+
+    const timestamp = Date.now();
+    return rawRows.map((r, i) => {
+      const isNew = r.code.trim()
+        ? !existingCodes.has(r.code.trim().toUpperCase())
+        : !existingNames.has(r.name.trim().toLowerCase());
+
+      return {
+        id: `parsed-${i}-${timestamp}-${Math.random().toString(36).substr(2, 9)}`,
+        name: r.name,
+        code: r.code,
+        checked: isNew,
+        isNew,
+      };
+    });
+  };
+
   const scanImage = async (file: File) => {
     setIsScanning(true);
     try {
-      // Dynamic import to avoid bleeding OCR heavy logic into initial page load
-      const Tesseract = (await import("tesseract.js")).default;
-      const result = await Tesseract.recognize(file, "eng");
-      const text = result.data.text;
+      // Convert file to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve) => {
+        reader.onload = () => {
+          const base64 = (reader.result as string).split(",")[1];
+          resolve(base64);
+        };
+      });
+      reader.readAsDataURL(file);
+      const base64Image = await base64Promise;
 
-      // Clean leading/trailing spaces but leave newlines for the parser
-      const cleaned = text.trim();
-      if (cleaned) {
-        setPastedText((prev) => (prev ? prev + "\n" + cleaned : cleaned));
+      // Call AI OCR
+      const results = await scanImageWithAI(base64Image);
+
+      if (results && results.length > 0) {
+        setParsedRows(processRawRows(results));
+        setView("preview");
+        setPastedText(""); // Clear text if we got direct objects
+      } else {
+        alert("AI could not find any subjects in this image. Try another one or paste text.");
       }
     } catch (err) {
-      console.error("OCR failed:", err);
-      alert("Failed to extract text from the pasted image. Please try again or paste text manually.");
+      console.error("AI OCR failed:", err);
+      alert("Failed to process image with AI. Please try again or paste text manually.");
     } finally {
       setIsScanning(false);
     }
@@ -217,7 +249,7 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       if (item.type.indexOf("image") !== -1) {
-        e.preventDefault(); // Stop default paste since it's an image
+        e.preventDefault();
         const file = item.getAsFile();
         if (file) {
           scanImage(file);
@@ -229,25 +261,7 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
 
   const handleParse = () => {
     const rawRows = parseSubjectsFromText(pastedText);
-    const existingCodes = new Set(existingSubjects.map(s => s.code.trim().toUpperCase()).filter(Boolean));
-    const existingNames = new Set(existingSubjects.map(s => s.name.trim().toLowerCase()));
-
-    const timestamp = Date.now();
-    setParsedRows(
-      rawRows.map((r, i) => {
-        const isNew = r.code.trim()
-          ? !existingCodes.has(r.code.trim().toUpperCase())
-          : !existingNames.has(r.name.trim().toLowerCase());
-
-        return {
-          id: `parsed-${i}-${timestamp}-${Math.random().toString(36).substr(2, 9)}`,
-          name: r.name,
-          code: r.code,
-          checked: isNew,
-          isNew,
-        };
-      })
-    );
+    setParsedRows(processRawRows(rawRows));
     setView("preview");
   };
 

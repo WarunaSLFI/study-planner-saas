@@ -17,9 +17,7 @@ export function parseSubjectsFromText(input: string): ParsedSubjectRow[] {
     const trailingLowercaseAfterNumberRegex = /(\d)\s+(?:[a-z]{4,}\s+){1,}[a-z]{4,}\s*$/;
     const continuationConnectorRegex = /^(?:and|or|of|to|for|in|on|with|the|a|an)\b/i;
 
-    // We want to globally match a code and non-greedily capture everything after it up to the next code or EOL
-    // A valid code generally has uppercase/numbers, at least two digits, optional -1234
-    const codeRegex = /([A-Z0-9]{2,}\d{2,}[A-Z0-9]*(?:-\d{3,5})?)\s+((?:(?![A-Z0-9]{2,}\d{2,}[A-Z0-9]*(?:-\d{3,5})?).)*)/gi;
+    const codeRegex = /([A-Z0-9]{2,}\d{2,}[A-Z0-9]*(?:-\d{3,5})?)/gi;
 
     // Heuristics: if a parsed name ends with noisy OCR fluff or separator chars, strip them
     const exactNoise = /\b(?:course implementations?|course name|course category|course progress|study type|assessor|status|- TAMK)\b/gi;
@@ -37,7 +35,7 @@ export function parseSubjectsFromText(input: string): ParsedSubjectRow[] {
     };
 
     const isLikelyContinuationLine = (line: string) => {
-        const cleaned = normalizeWhitespace(line);
+        const cleaned = sanitizeName(line);
         if (!cleaned) return false;
         if (noiseRegex.test(cleaned)) return false;
         if (continuationBlockRegex.test(cleaned)) return false;
@@ -62,27 +60,56 @@ export function parseSubjectsFromText(input: string): ParsedSubjectRow[] {
             continue;
         }
 
-        let foundCodesOnLine = 0;
+        const codes: { code: string; index: number; end: number }[] = [];
+        codeRegex.lastIndex = 0;
         let match: RegExpExecArray | null;
 
-        // Use matchAll or reset lastIndex to find all occurrences
-        codeRegex.lastIndex = 0;
         while ((match = codeRegex.exec(line)) !== null) {
-            const code = match[1];
-            const namePart = match[2];
-
-            const cleanName = sanitizeName(namePart);
-
-            if (code && code.length >= 5 && code.length <= 16) {
-                foundCodesOnLine++;
-                parsedRows.push({
-                    name: cleanName || "Unknown Subject",
-                    code: code.toUpperCase(),
-                });
-            }
+            codes.push({ code: match[1], index: match.index, end: match.index + match[0].length });
         }
 
-        if (foundCodesOnLine > 0) {
+        if (codes.length > 0) {
+            let isNameCodeFormat = false;
+            const textBefore = line.substring(0, codes[0].index).trim();
+            if (textBefore.length > 2 && /[a-zA-Z]/.test(textBefore)) {
+                isNameCodeFormat = true;
+            }
+
+            let foundCodesOnLine = 0;
+            if (isNameCodeFormat) {
+                // NAME CODE layout
+                for (let i = 0; i < codes.length; i++) {
+                    const startIdx = i === 0 ? 0 : codes[i - 1].end;
+                    let rawName = line.substring(startIdx, codes[i].index).trim();
+                    rawName = rawName.replace(/^[\d\s]+/, "").trim(); // Strip potential trailing credits from previous code
+                    const cleanName = sanitizeName(rawName);
+
+                    if (codes[i].code.length >= 5 && codes[i].code.length <= 16) {
+                        foundCodesOnLine++;
+                        parsedRows.push({
+                            name: cleanName || "Unknown Subject",
+                            code: codes[i].code.toUpperCase(),
+                        });
+                    }
+                }
+            } else {
+                // CODE NAME layout
+                for (let i = 0; i < codes.length; i++) {
+                    const startIdx = codes[i].end;
+                    const endIdx = i < codes.length - 1 ? codes[i + 1].index : line.length;
+                    const rawName = line.substring(startIdx, endIdx).trim();
+                    const cleanName = sanitizeName(rawName);
+
+                    if (codes[i].code.length >= 5 && codes[i].code.length <= 16) {
+                        foundCodesOnLine++;
+                        parsedRows.push({
+                            name: cleanName || "Unknown Subject",
+                            code: codes[i].code.toUpperCase(),
+                        });
+                    }
+                }
+            }
+
             codesParsedOnLastLine = foundCodesOnLine;
             continue;
         }
@@ -101,7 +128,6 @@ export function parseSubjectsFromText(input: string): ParsedSubjectRow[] {
             const chunks = line.replace(exactNoise, " ").replace(percentages, " ").split(/\s{2,}/).map(s => s.trim()).filter(s => s);
 
             // Distribute these chunks to the last N parsed subjects, aligning them rightwards.
-            // E.g. if we have 3 subjects, and 2 trailing chunks, they likely belong to col 2 and col 3.
             const rowsToUpdate = parsedRows.slice(-codesParsedOnLastLine);
             const offset = Math.max(0, codesParsedOnLastLine - chunks.length);
 
@@ -126,5 +152,19 @@ export function parseSubjectsFromText(input: string): ParsedSubjectRow[] {
         codesParsedOnLastLine = 0;
     }
 
-    return parsedRows;
+    // Deduplicate logic: prioritize keeping the first subject that has a particular name.
+    const uniqueRows: ParsedSubjectRow[] = [];
+    const seenNames = new Set<string>();
+
+    for (const row of parsedRows) {
+        const normalizedName = row.name.toLowerCase().replace(/\s+/g, " ").trim();
+        if (normalizedName === "unknown subject" || normalizedName.length === 0) {
+            uniqueRows.push(row);
+        } else if (!seenNames.has(normalizedName)) {
+            seenNames.add(normalizedName);
+            uniqueRows.push(row);
+        }
+    }
+
+    return uniqueRows;
 }
