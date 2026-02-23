@@ -14,8 +14,11 @@ export async function scanImageWithAI(base64Image: string) {
     }
 
     try {
-        // Using gemini-1.5-flash-latest for better compatibility with different API versions
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+        // Force the use of the stable v1 API to avoid regional restrictions in EU/EEA
+        const model = genAI.getGenerativeModel(
+            { model: "gemini-1.5-flash" },
+            { apiVersion: "v1" }
+        );
 
         const prompt = `You are an expert OCR assistant. Your goal is to extract study subjects from an image. 
         Look for subject codes (e.g., 5G00DL96-3014) and their names.
