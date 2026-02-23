@@ -55,7 +55,7 @@ type AppDataContextValue = {
   editSubject: (id: string, name: string, code: string) => Promise<{ success: boolean; error?: string }>;
   deleteSubject: (id: string) => void;
   addSubjectsBulk: (rows: import("@/lib/parseSubjects").ParsedSubjectRow[]) => Promise<{ addedCount: number; skippedCount: number }>;
-  addAssignmentsBulk: (parsedAssignments: import("@/lib/parseAssignments").ParsedAssignmentRow[]) => void;
+  addAssignmentsBulk: (parsedAssignments: (import("@/lib/parseAssignments").ParsedAssignmentRow & { subjectId?: string })[]) => void;
   addAssignment: (assignmentData: AddAssignmentInput) => void;
   updateAssignment: (id: string, updatedData: Partial<AssignmentItem>) => void;
   deleteAssignment: (id: string) => void;
@@ -427,7 +427,7 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
   }, [supabase, dbAssignments, dbSubjects]);
 
   // ── Bulk import assignments ──────────────────────────────────────────
-  const addAssignmentsBulk = useCallback(async (parsedAssignments: import("@/lib/parseAssignments").ParsedAssignmentRow[]) => {
+  const addAssignmentsBulk = useCallback(async (parsedAssignments: (import("@/lib/parseAssignments").ParsedAssignmentRow & { subjectId?: string })[]) => {
     if (!userId) return;
 
     setBulkLoading(true);
@@ -443,45 +443,48 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
       const assignmentsToInsert: { user_id: string; subject_id: string; title: string; due_date: string | null; is_completed: boolean }[] = [];
 
       for (const parsed of parsedAssignments) {
-        let subjectId = "";
+        let subjectId = parsed.subjectId || "";
 
-        if (parsed.subjectCode) {
-          const cleanCode = parsed.subjectCode.trim().toUpperCase();
-          const existing = currentSubjects.find(s => s.subject_code.trim().toUpperCase() === cleanCode);
+        // If no subjectId was provided, attempt to match or create (fallback logic)
+        if (!subjectId) {
+          if (parsed.subjectCode) {
+            const cleanCode = parsed.subjectCode.trim().toUpperCase();
+            const existing = currentSubjects.find(s => s.subject_code.trim().toUpperCase() === cleanCode);
 
-          if (existing) {
-            subjectId = existing.id;
-          } else {
-            const subjectName = parsed.subjectName || `Subject ${cleanCode}`;
-            const { data, error } = await supabase.from("subjects").insert({
-              user_id: userId,
-              subject_name: subjectName,
-              subject_code: parsed.subjectCode.trim(),
-            }).select().single();
+            if (existing) {
+              subjectId = existing.id;
+            } else {
+              const subjectName = parsed.subjectName || `Subject ${cleanCode}`;
+              const { data, error } = await supabase.from("subjects").insert({
+                user_id: userId,
+                subject_name: subjectName,
+                subject_code: parsed.subjectCode.trim(),
+              }).select().single();
 
-            if (error) throw error;
-            if (data) {
-              currentSubjects.push(data);
-              subjectId = data.id;
+              if (error) throw error;
+              if (data) {
+                currentSubjects.push(data);
+                subjectId = data.id;
+              }
             }
-          }
-        } else if (parsed.subjectName) {
-          const nameToFind = parsed.subjectName.trim().toLowerCase();
-          const existingByName = currentSubjects.find(s => s.subject_name.toLowerCase() === nameToFind);
+          } else if (parsed.subjectName) {
+            const nameToFind = parsed.subjectName.trim().toLowerCase();
+            const existingByName = currentSubjects.find(s => s.subject_name.toLowerCase() === nameToFind);
 
-          if (existingByName) {
-            subjectId = existingByName.id;
-          } else {
-            const { data, error } = await supabase.from("subjects").insert({
-              user_id: userId,
-              subject_name: parsed.subjectName.trim(),
-              subject_code: "UNKNOWN",
-            }).select().single();
+            if (existingByName) {
+              subjectId = existingByName.id;
+            } else {
+              const { data, error } = await supabase.from("subjects").insert({
+                user_id: userId,
+                subject_name: parsed.subjectName.trim(),
+                subject_code: "UNKNOWN",
+              }).select().single();
 
-            if (error) throw error;
-            if (data) {
-              currentSubjects.push(data);
-              subjectId = data.id;
+              if (error) throw error;
+              if (data) {
+                currentSubjects.push(data);
+                subjectId = data.id;
+              }
             }
           }
         }
