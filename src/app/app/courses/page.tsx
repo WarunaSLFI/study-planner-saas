@@ -167,11 +167,13 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
   const [pastedText, setPastedText] = useState("");
   const [parsedRows, setParsedRows] = useState<{ id: string; name: string; code: string; checked: boolean; isNew: boolean }[]>([]);
   const [view, setView] = useState<"paste" | "preview">("paste");
+  const [isScanning, setIsScanning] = useState(false);
 
   const handleClose = () => {
     setPastedText("");
     setParsedRows([]);
     setView("paste");
+    setIsScanning(false);
     onClose();
   };
 
@@ -187,6 +189,44 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen]);
 
+  const scanImage = async (file: File) => {
+    setIsScanning(true);
+    try {
+      // Dynamic import to avoid bleeding OCR heavy logic into initial page load
+      const Tesseract = (await import("tesseract.js")).default;
+      const result = await Tesseract.recognize(file, "eng");
+      const text = result.data.text;
+
+      // Clean leading/trailing spaces but leave newlines for the parser
+      const cleaned = text.trim();
+      if (cleaned) {
+        setPastedText((prev) => (prev ? prev + "\n" + cleaned : cleaned));
+      }
+    } catch (err) {
+      console.error("OCR failed:", err);
+      alert("Failed to extract text from the pasted image. Please try again or paste text manually.");
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handlePasteEvent = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf("image") !== -1) {
+        e.preventDefault(); // Stop default paste since it's an image
+        const file = item.getAsFile();
+        if (file) {
+          scanImage(file);
+        }
+        break;
+      }
+    }
+  };
+
   const handleParse = () => {
     const rawRows = parseSubjectsFromText(pastedText);
     const existingCodes = new Set(existingSubjects.map(s => s.code.trim().toUpperCase()).filter(Boolean));
@@ -200,7 +240,6 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
           : !existingNames.has(r.name.trim().toLowerCase());
 
         return {
-          // Add crypto.randomUUID() or Math.random() to guarantee uniqueness even in tight loops
           id: `parsed-${i}-${timestamp}-${Math.random().toString(36).substr(2, 9)}`,
           name: r.name,
           code: r.code,
@@ -236,18 +275,31 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
         </div>
 
         {view === "paste" ? (
-          <div className="flex-1 overflow-y-auto">
-            <p className="mb-2 text-slate-600">Copy and paste your subject list from your university website directly into the box below. We will attempt to automatically extract the Subject Name and Subject Code.</p>
+          <div className="flex-1 overflow-y-auto relative">
+            <p className="mb-2 text-slate-600">Copy and paste your subject list from your university website directly into the box below. You can also <strong>paste a screenshot/image</strong> and we will auto-extract the text!</p>
             <textarea
               className="w-full h-64 rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 resize-none placeholder:text-slate-400"
-              placeholder="Paste your subject list here..."
+              placeholder="Paste your subject list or image here..."
               value={pastedText}
               onChange={(e) => setPastedText(e.target.value)}
+              onPaste={handlePasteEvent}
+              disabled={isScanning}
             />
+            {isScanning && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 mb-16 mt-9">
+                <div className="flex flex-col items-center">
+                  <svg className="animate-spin h-8 w-8 text-indigo-600 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span className="text-lg font-medium text-slate-700">Scanning image with AI...</span>
+                </div>
+              </div>
+            )}
             <div className="mt-4 flex justify-end">
               <button
                 onClick={handleParse}
-                disabled={!pastedText.trim()}
+                disabled={!pastedText.trim() || isScanning}
                 className="rounded-xl bg-slate-900 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
               >
                 Parse

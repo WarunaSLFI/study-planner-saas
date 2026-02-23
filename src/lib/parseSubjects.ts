@@ -6,7 +6,7 @@ export type ParsedSubjectRow = {
 export function parseSubjectsFromText(input: string): ParsedSubjectRow[] {
     if (!input) return [];
 
-    const lines = input.split(/\\r?\\n/).map((line) => line.trim());
+    const lines = input.split(/\r?\n/).map((line) => line.trim());
     const parsedRows: ParsedSubjectRow[] = [];
 
     // Known noise lines to ignore
@@ -14,7 +14,7 @@ export function parseSubjectsFromText(input: string): ParsedSubjectRow[] {
 
     // Code must start the line, contain uppercase/numbers, have at least two digits, and optional -1234
     // Usually length before hyphen is 5 to 12 chars
-    const codeRegex = /^([A-Z0-9]*\\d{2,}[A-Z0-9]*(?:-\\d{3,5})?)\\s+(.*)$/i;
+    const codeRegex = /^([A-Z0-9]*\d{2,}[A-Z0-9]*(?:-\d{3,5})?)\s+(.*)$/i;
 
     for (const line of lines) {
         if (!line) continue;
@@ -25,7 +25,7 @@ export function parseSubjectsFromText(input: string): ParsedSubjectRow[] {
         if (match) {
             const code = match[1];
             // Collapse multiple spaces into one
-            const cleanName = match[2].replace(/\\s+/g, " ");
+            const cleanName = match[2].replace(/\s+/g, " ");
 
             // Ensure the code looks like a real code (at least 5 chars)
             if (cleanName && code && code.length >= 5 && code.length <= 16) {
@@ -35,15 +35,18 @@ export function parseSubjectsFromText(input: string): ParsedSubjectRow[] {
                 });
             }
         } else {
-            // It might be a valid course without a code
-            // Only add it if it's not noise
-            const cleanName = line.replace(/\\s+/g, " ");
-            if (cleanName.length > 3) {
-                // If the app requires a code, we can just leave it empty
-                parsedRows.push({
-                    name: cleanName,
-                    code: "",
-                });
+            // It didn't match a code.
+            // If we have a recently added course, this line might be a continuation of its name.
+            const cleanName = line.replace(/\s+/g, " ");
+            if (cleanName.length > 2) {
+                if (parsedRows.length > 0) {
+                    parsedRows[parsedRows.length - 1].name += " " + cleanName;
+                } else {
+                    parsedRows.push({
+                        name: cleanName,
+                        code: "",
+                    });
+                }
             }
         }
     }
