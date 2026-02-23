@@ -192,6 +192,7 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
     const existingCodes = new Set(existingSubjects.map(s => s.code.trim().toUpperCase()).filter(Boolean));
     const existingNames = new Set(existingSubjects.map(s => s.name.trim().toLowerCase()));
 
+    const timestamp = Date.now();
     setParsedRows(
       rawRows.map((r, i) => {
         const isNew = r.code.trim()
@@ -199,7 +200,8 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
           : !existingNames.has(r.name.trim().toLowerCase());
 
         return {
-          id: `parsed-${i}-${Date.now()}`,
+          // Add crypto.randomUUID() or Math.random() to guarantee uniqueness even in tight loops
+          id: `parsed-${i}-${timestamp}-${Math.random().toString(36).substr(2, 9)}`,
           name: r.name,
           code: r.code,
           checked: isNew,
