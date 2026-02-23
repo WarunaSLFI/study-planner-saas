@@ -485,19 +485,19 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
                               className="w-full border-0 bg-transparent p-0 text-slate-700 font-mono focus:ring-0 font-medium"
                             />
                             {row.needsReview && row.reviewChoice === "" ? (
-                              <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-lg font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
+                              <span className="inline-flex whitespace-nowrap items-center rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20 shadow-sm">
                                 Review
                               </span>
                             ) : row.reviewChoice.startsWith("existing:") ? (
-                              <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-lg font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
+                              <span className="inline-flex whitespace-nowrap items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-600/20 shadow-sm">
                                 Use Existing
                               </span>
                             ) : row.isNew ? (
-                              <span className="inline-flex rounded-full bg-green-50 px-2 py-0.5 text-lg font-semibold text-green-700 ring-1 ring-inset ring-green-200">
+                              <span className="inline-flex whitespace-nowrap items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 shadow-sm">
                                 New
                               </span>
                             ) : (
-                              <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-lg font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
+                              <span className="inline-flex whitespace-nowrap items-center rounded-md bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-500/10 shadow-sm">
                                 Exists
                               </span>
                             )}
