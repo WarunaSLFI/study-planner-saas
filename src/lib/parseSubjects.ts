@@ -12,30 +12,37 @@ export function parseSubjectsFromText(input: string): ParsedSubjectRow[] {
     // Known noise lines to ignore
     const noiseRegex = /^(course category|course implementations|course progress|course name|other|kpl|status|study type|assessor|completed studies|no completed studies)/i;
 
-    // Code must start the line, contain uppercase/numbers, have at least two digits, and optional -1234
-    // Usually length before hyphen is 5 to 12 chars
-    const codeRegex = /^([A-Z0-9]*\d{2,}[A-Z0-9]*(?:-\d{3,5})?)\s+(.*)$/i;
+    // We want to globally match a code and non-greedily capture everything after it up to the next code or EOL
+    // A valid code generally has uppercase/numbers, at least two digits, optional -1234
+    const codeRegex = /([A-Z0-9]{2,}\d{2,}[A-Z0-9]*(?:-\d{3,5})?)\s+((?:(?![A-Z0-9]{2,}\d{2,}[A-Z0-9]*(?:-\d{3,5})?).)*)/gi;
 
     for (const line of lines) {
         if (!line) continue;
-
         if (noiseRegex.test(line)) continue;
 
-        const match = line.match(codeRegex);
-        if (match) {
-            const code = match[1];
-            // Collapse multiple spaces into one
-            const cleanName = match[2].replace(/\s+/g, " ");
+        let foundCodesOnLine = false;
+        let match;
 
-            // Ensure the code looks like a real code (at least 5 chars)
-            if (cleanName && code && code.length >= 5 && code.length <= 16) {
+        // Use matchAll or reset lastIndex to find all occurrences
+        codeRegex.lastIndex = 0;
+        while ((match = codeRegex.exec(line)) !== null) {
+            const code = match[1];
+            const namePart = match[2];
+
+            // Collapse multiple spaces into one
+            const cleanName = namePart.replace(/\s+/g, " ").trim();
+
+            if (code && code.length >= 5 && code.length <= 16) {
+                foundCodesOnLine = true;
                 parsedRows.push({
-                    name: cleanName,
+                    name: cleanName || "Unknown Subject",
                     code: code.toUpperCase(),
                 });
             }
-        } else {
-            // It didn't match a code.
+        }
+
+        if (!foundCodesOnLine) {
+            // It didn't match any code.
             // If we have a recently added course, this line might be a continuation of its name.
             const cleanName = line.replace(/\s+/g, " ");
             if (cleanName.length > 2) {
