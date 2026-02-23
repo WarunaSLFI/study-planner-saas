@@ -287,8 +287,6 @@ function NotificationBell() {
   const { permission, requestPermission } = useNotification();
 
   const getStatusColor = () => {
-    if (permission === "granted") return "text-emerald-500";
-    if (permission === "denied") return "text-rose-500";
     return "text-slate-400";
   };
 
