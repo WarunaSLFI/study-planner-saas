@@ -125,9 +125,6 @@ export default function Header({ title }: HeaderProps) {
             </button>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-semibold text-slate-700">{resolvedTitle}</h1>
-              <span className="text-sm font-medium rounded-md bg-slate-100 px-2 py-0.5 text-slate-700 border border-slate-200">
-                v{pkg.version}
-              </span>
             </div>
           </div>
 
