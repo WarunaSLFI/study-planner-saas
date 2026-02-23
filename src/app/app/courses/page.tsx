@@ -19,6 +19,141 @@ function highlightText(text: string, query: string): ReactNode {
   );
 }
 
+type MatchReason = "exact_code" | "exact_name" | "similar_code";
+
+type ReviewCandidate = {
+  subjectId: string;
+  subjectName: string;
+  subjectCode: string;
+  reason: MatchReason;
+  score: number;
+  note: string;
+};
+
+type ReviewChoice = "" | "new" | `existing:${string}`;
+
+type ParsedImportRow = {
+  id: string;
+  name: string;
+  code: string;
+  checked: boolean;
+  isNew: boolean;
+  needsReview: boolean;
+  allowCreateNew: boolean;
+  reviewChoice: ReviewChoice;
+  reviewCandidates: ReviewCandidate[];
+};
+
+const normalizeName = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ");
+
+const normalizeCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+function levenshteinDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+
+  const prev = new Array(b.length + 1).fill(0);
+  const curr = new Array(b.length + 1).fill(0);
+
+  for (let j = 0; j <= b.length; j++) prev[j] = j;
+
+  for (let i = 1; i <= a.length; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(
+        prev[j] + 1,
+        curr[j - 1] + 1,
+        prev[j - 1] + cost
+      );
+    }
+    for (let j = 0; j <= b.length; j++) prev[j] = curr[j];
+  }
+
+  return prev[b.length];
+}
+
+function getCodeDigitDifferenceSummary(inputCode: string, existingCode: string): { distance: number; digitDiff: number } | null {
+  const left = normalizeCode(inputCode);
+  const right = normalizeCode(existingCode);
+  if (!left || !right) return null;
+
+  const distance = levenshteinDistance(left, right);
+  if (distance <= 0 || distance > 2) return null;
+
+  const maxLen = Math.max(left.length, right.length);
+  let digitDiff = 0;
+  for (let i = 0; i < maxLen; i++) {
+    const a = left[i] ?? "";
+    const b = right[i] ?? "";
+    if (a === b) continue;
+    if (/\d/.test(a) || /\d/.test(b)) digitDiff += 1;
+  }
+
+  if (digitDiff <= 0 || digitDiff > 2) return null;
+  return { distance, digitDiff };
+}
+
+function findReviewCandidates(row: { name: string; code: string }, existingSubjects: SubjectItem[]): ReviewCandidate[] {
+  const rowName = normalizeName(row.name);
+  const rowCode = normalizeCode(row.code);
+  const bestBySubjectId = new Map<string, ReviewCandidate>();
+
+  for (const existing of existingSubjects) {
+    const existingName = normalizeName(existing.name);
+    const existingCode = normalizeCode(existing.code);
+
+    const registerCandidate = (candidate: ReviewCandidate) => {
+      const current = bestBySubjectId.get(candidate.subjectId);
+      if (!current || candidate.score < current.score) {
+        bestBySubjectId.set(candidate.subjectId, candidate);
+      }
+    };
+
+    if (rowCode && existingCode && rowCode === existingCode) {
+      registerCandidate({
+        subjectId: existing.id,
+        subjectName: existing.name,
+        subjectCode: existing.code,
+        reason: "exact_code",
+        score: 0,
+        note: "Exact code match",
+      });
+    }
+
+    if (rowName && existingName && rowName === existingName) {
+      registerCandidate({
+        subjectId: existing.id,
+        subjectName: existing.name,
+        subjectCode: existing.code,
+        reason: "exact_name",
+        score: 1,
+        note: "Exact subject name match",
+      });
+    }
+
+    const codeDiff = getCodeDigitDifferenceSummary(row.code, existing.code);
+    if (codeDiff) {
+      registerCandidate({
+        subjectId: existing.id,
+        subjectName: existing.name,
+        subjectCode: existing.code,
+        reason: "similar_code",
+        score: 2 + codeDiff.distance,
+        note: `Code is very close (${codeDiff.digitDiff} digit difference)`,
+      });
+    }
+  }
+
+  return [...bestBySubjectId.values()].sort((a, b) => a.score - b.score);
+}
+
 type SubjectModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -165,7 +300,7 @@ type ImportSubjectsModalProps = {
 
 function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }: ImportSubjectsModalProps) {
   const [pastedText, setPastedText] = useState("");
-  const [parsedRows, setParsedRows] = useState<{ id: string; name: string; code: string; checked: boolean; isNew: boolean }[]>([]);
+  const [parsedRows, setParsedRows] = useState<ParsedImportRow[]>([]);
   const [view, setView] = useState<"paste" | "preview">("paste");
 
   const handleClose = () => {
@@ -187,24 +322,31 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen]);
 
+  const buildParsedRow = (rawRow: { name: string; code: string }, id: string): ParsedImportRow => {
+    const reviewCandidates = findReviewCandidates(rawRow, existingSubjects);
+    const hasExactMatch = reviewCandidates.some((candidate) => candidate.reason === "exact_code" || candidate.reason === "exact_name");
+    const needsReview = reviewCandidates.length > 0;
+    const isNew = !needsReview;
+
+    return {
+      id,
+      name: rawRow.name,
+      code: rawRow.code,
+      checked: isNew,
+      isNew,
+      needsReview,
+      allowCreateNew: !hasExactMatch,
+      reviewChoice: needsReview ? "" : "new",
+      reviewCandidates,
+    };
+  };
+
   const processRawRows = (rawRows: { name: string; code: string }[]) => {
-    const existingCodes = new Set(existingSubjects.map(s => s.code.trim().toUpperCase()).filter(Boolean));
-    const existingNames = new Set(existingSubjects.map(s => s.name.trim().toLowerCase()));
-
     const timestamp = Date.now();
-    return rawRows.map((r, i) => {
-      const isNew = r.code.trim()
-        ? !existingCodes.has(r.code.trim().toUpperCase())
-        : !existingNames.has(r.name.trim().toLowerCase());
-
-      return {
-        id: `parsed-${i}-${timestamp}-${Math.random().toString(36).substr(2, 9)}`,
-        name: r.name,
-        code: r.code,
-        checked: isNew,
-        isNew,
-      };
-    });
+    return rawRows.map((rawRow, i) => buildParsedRow(
+      rawRow,
+      `parsed-${i}-${timestamp}-${Math.random().toString(36).slice(2, 11)}`
+    ));
   };
 
 
@@ -219,6 +361,39 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
     const { addedCount, skippedCount } = await onImportBulk(selectedRows);
     alert(`Imported ${addedCount} new subjects. Skipped ${skippedCount} existing.`);
     handleClose();
+  };
+
+  const unresolvedReviewCount = parsedRows.filter((row) => row.needsReview && row.reviewChoice === "").length;
+  const canImport = parsedRows.length > 0 && parsedRows.some((row) => row.checked) && unresolvedReviewCount === 0;
+
+  const handleNameChange = (rowId: string, name: string) => {
+    setParsedRows((prev) =>
+      prev.map((row) => (row.id === rowId ? buildParsedRow({ name, code: row.code }, row.id) : row))
+    );
+  };
+
+  const handleCodeChange = (rowId: string, code: string) => {
+    setParsedRows((prev) =>
+      prev.map((row) => (row.id === rowId ? buildParsedRow({ name: row.name, code }, row.id) : row))
+    );
+  };
+
+  const handleReviewChoiceChange = (rowId: string, reviewChoice: ReviewChoice) => {
+    setParsedRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== rowId) return row;
+
+        if (!reviewChoice) {
+          return { ...row, reviewChoice: "", checked: false, isNew: false };
+        }
+
+        if (reviewChoice === "new") {
+          return { ...row, reviewChoice, checked: true, isNew: true };
+        }
+
+        return { ...row, reviewChoice, checked: false, isNew: false };
+      })
+    );
   };
 
   if (!isOpen) return null;
@@ -258,7 +433,12 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
-            <p className="mb-4 text-slate-600">Review the parsed subjects below. You can uncheck items or double-click text to edit.</p>
+            <p className="mb-2 text-slate-600">Review the parsed subjects below. Rows with similar/existing subjects require manual selection before import.</p>
+            {unresolvedReviewCount > 0 && (
+              <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                Resolve {unresolvedReviewCount} flagged row{unresolvedReviewCount === 1 ? "" : "s"} before importing.
+              </p>
+            )}
             <div className="flex-1 overflow-auto overflow-x-auto border border-slate-200 rounded-lg">
               <table className="min-w-full divide-y divide-slate-200 text-left">
                 <thead className="bg-slate-50 sticky top-0">
@@ -266,12 +446,13 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
                     <th className="px-3 py-3 text-lg font-semibold text-slate-700">Import</th>
                     <th className="px-3 py-3 text-lg font-semibold text-slate-700">Name</th>
                     <th className="px-3 py-3 text-lg font-semibold text-slate-700">Code</th>
+                    <th className="px-3 py-3 text-lg font-semibold text-slate-700">Review</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
                   {parsedRows.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="p-4 text-center text-slate-500">No codes could be parsed from the text.</td>
+                      <td colSpan={4} className="p-4 text-center text-slate-500">No codes could be parsed from the text.</td>
                     </tr>
                   ) : (
                     parsedRows.map((row) => (
@@ -281,8 +462,9 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
                             type="checkbox"
                             className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
                             checked={row.checked}
+                            disabled={row.needsReview}
                             onChange={(e) => {
-                              setParsedRows((prev) => prev.map((r) => r.id === row.id ? { ...r, checked: e.target.checked } : r));
+                              setParsedRows((prev) => prev.map((r) => r.id === row.id ? { ...r, checked: e.target.checked, isNew: e.target.checked } : r));
                             }}
                           />
                         </td>
@@ -290,7 +472,7 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
                           <input
                             type="text"
                             value={row.name}
-                            onChange={(e) => setParsedRows((prev) => prev.map((r) => r.id === row.id ? { ...r, name: e.target.value } : r))}
+                            onChange={(e) => handleNameChange(row.id, e.target.value)}
                             className="w-full border-0 bg-transparent p-0 text-slate-700 focus:ring-0"
                           />
                         </td>
@@ -299,10 +481,18 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
                             <input
                               type="text"
                               value={row.code}
-                              onChange={(e) => setParsedRows((prev) => prev.map((r) => r.id === row.id ? { ...r, code: e.target.value } : r))}
+                              onChange={(e) => handleCodeChange(row.id, e.target.value)}
                               className="w-full border-0 bg-transparent p-0 text-slate-700 font-mono focus:ring-0 font-medium"
                             />
-                            {row.isNew ? (
+                            {row.needsReview && row.reviewChoice === "" ? (
+                              <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-lg font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
+                                Review
+                              </span>
+                            ) : row.reviewChoice.startsWith("existing:") ? (
+                              <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-lg font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
+                                Use Existing
+                              </span>
+                            ) : row.isNew ? (
                               <span className="inline-flex rounded-full bg-green-50 px-2 py-0.5 text-lg font-semibold text-green-700 ring-1 ring-inset ring-green-200">
                                 New
                               </span>
@@ -312,6 +502,32 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
                               </span>
                             )}
                           </div>
+                        </td>
+                        <td className="p-3 min-w-[340px]">
+                          {row.needsReview ? (
+                            <div className="space-y-2">
+                              <select
+                                value={row.reviewChoice}
+                                onChange={(e) => handleReviewChoiceChange(row.id, e.target.value as ReviewChoice)}
+                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                              >
+                                <option value="">Select existing subject...</option>
+                                {row.reviewCandidates.map((candidate) => (
+                                  <option key={candidate.subjectId} value={`existing:${candidate.subjectId}`}>
+                                    Use {candidate.subjectCode?.trim() ? candidate.subjectCode : "NO-CODE"} - {candidate.subjectName}
+                                  </option>
+                                ))}
+                                {row.allowCreateNew && (
+                                  <option value="new">Import as new subject</option>
+                                )}
+                              </select>
+                              <p className="text-xs text-slate-500">
+                                {row.reviewCandidates[0]?.note || "Similar subject found. Choose existing or mark as new."}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-slate-500">No conflicts detected.</span>
+                          )}
                         </td>
                       </tr>
                     ))
@@ -329,7 +545,7 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
               </button>
               <button
                 onClick={handleImport}
-                disabled={parsedRows.length === 0 || !parsedRows.some(r => r.checked)}
+                disabled={!canImport}
                 className="rounded-lg bg-indigo-600 px-4 py-2 text-lg font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
               >
                 Import Selected
