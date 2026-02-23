@@ -70,14 +70,14 @@ function ResetModal({ isOpen, onClose, onConfirm }: {
           onChange={(e) => setConfirmText(e.target.value)}
           placeholder="Type RESET"
           className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100"
- autoFocus
- />
+          autoFocus
+        />
         <div className="mt-5 flex items-center justify-end gap-3">
           <button
             type="button"
             onClick={handleClose}
             className="rounded-xl border border-slate-300 px-4 py-2 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
- >
+          >
             Cancel
           </button>
           <button
@@ -85,7 +85,7 @@ function ResetModal({ isOpen, onClose, onConfirm }: {
             onClick={handleConfirm}
             disabled={!isMatch}
             className="rounded-xl bg-red-600 px-4 py-2 text-lg font-semibold text-white transition hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
- >
+          >
             Delete Everything
           </button>
         </div>
@@ -143,16 +143,16 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "study-planner-backup.json";
+    a.download = `study-planner-backup-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  const handleImportText = () => {
+  const handleImportText = async () => {
     if (!importJson.trim()) return;
-    const success = importData(importJson);
+    const success = await importData(importJson);
     if (success) {
       setImportStatus("success");
       setImportJson("");
@@ -167,9 +167,9 @@ export default function SettingsPage() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const text = event.target?.result as string;
-      const success = importData(text);
+      const success = await importData(text);
       if (success) {
         setImportStatus("success");
         setImportJson("");
@@ -180,7 +180,6 @@ export default function SettingsPage() {
     };
     reader.readAsText(file);
 
-    // Reset input so the same file can be re-selected
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -190,25 +189,39 @@ export default function SettingsPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
 
+      {/* ─── Cloud Sync Status ─────────────────────────────────────────── */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-slate-800">Cloud Sync</h2>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            Active
+          </span>
+        </div>
+        <p className="mt-2 text-lg text-slate-500">
+          Your data is automatically synced to the cloud. You can access it from any device by logging in with your account.
+        </p>
+      </section>
+
       {/* ─── Data Management ───────────────────────────────────────────── */}
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-slate-800">Data Management</h2>
+        <h2 className="text-xl font-semibold text-slate-800">Local Backups & Portability</h2>
         <p className="mt-1 text-lg text-slate-500">
-          Manage your local data. You can export a backup, import previously exported data, or completely reset.
+          Export a manual backup of your data or import a previously exported file to restore your planner.
         </p>
 
         <div className="mt-6 flex flex-wrap items-center gap-4">
           <button
             onClick={handleExport}
             className="rounded-lg bg-slate-900 px-4 py-2 text-lg font-medium text-white transition-colors hover:bg-slate-800"
- >
-            Export Data
+          >
+            Export Backup (.json)
           </button>
           <button
             onClick={() => setIsResetModalOpen(true)}
             className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-lg font-medium text-red-600 transition-colors hover:bg-red-100 hover:text-red-700"
- >
-            Reset All Data
+          >
+            Reset Account Data
           </button>
           {resetSuccess && (
             <span className="text-lg font-medium text-green-600">Data reset successfully!</span>
@@ -235,7 +248,7 @@ export default function SettingsPage() {
                 accept=".json,application/json"
                 onChange={handleFileUpload}
                 className="hidden"
- />
+              />
             </label>
           </div>
 
@@ -247,17 +260,17 @@ export default function SettingsPage() {
           </div>
           <textarea
             className="mt-3 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
- rows={5}
- placeholder='{"subjects": [...], "assignments": [...], "activity": [...]}'
- value={importJson}
- onChange={(e) => setImportJson(e.target.value)}
+            rows={5}
+            placeholder='{"subjects": [...], "assignments": [...], "activity": [...]}'
+            value={importJson}
+            onChange={(e) => setImportJson(e.target.value)}
           />
           <div className="mt-3 flex items-center gap-4">
             <button
               onClick={handleImportText}
               disabled={!importJson.trim()}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-lg font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
- >
+            >
               Import
             </button>
             {importStatus === "success" && (
@@ -294,7 +307,7 @@ export default function SettingsPage() {
               value={prefs.defaultAssignmentSort}
               onChange={(e) => updatePref("defaultAssignmentSort", e.target.value as Preferences["defaultAssignmentSort"])}
               className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
- >
+            >
               <option value="dueDateAsc">Due Date (Earliest First)</option>
               <option value="dueDateDesc">Due Date (Latest First)</option>
               <option value="createdAtDesc">Newest First</option>
@@ -308,7 +321,7 @@ export default function SettingsPage() {
               value={prefs.dateDisplayFormat}
               onChange={(e) => updatePref("dateDisplayFormat", e.target.value as Preferences["dateDisplayFormat"])}
               className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
- >
+            >
               <option value="Readable">Readable (e.g. 21 Feb 2026)</option>
               <option value="ISO">ISO (e.g. 2026-02-21)</option>
             </select>
@@ -327,7 +340,7 @@ export default function SettingsPage() {
               checked={prefs.hideCompletedByDefault}
               onChange={(e) => updatePref("hideCompletedByDefault", e.target.checked)}
               className="h-5 w-5 shrink-0 rounded border-slate-300 text-slate-900 focus:ring-slate-500 cursor-pointer"
- />
+            />
           </label>
 
           {/* Week starts on Monday */}
@@ -343,7 +356,7 @@ export default function SettingsPage() {
               checked={prefs.weekStartsOnMonday}
               onChange={(e) => updatePref("weekStartsOnMonday", e.target.checked)}
               className="h-5 w-5 shrink-0 rounded border-slate-300 text-slate-900 focus:ring-slate-500 cursor-pointer"
- />
+            />
           </label>
         </div>
       </section>

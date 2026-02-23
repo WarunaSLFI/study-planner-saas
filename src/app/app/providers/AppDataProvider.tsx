@@ -62,7 +62,7 @@ type AppDataContextValue = {
   toggleAssignmentCompletion: (id: string) => void;
   resetData: () => void;
   exportData: () => string;
-  importData: (jsonString: string) => boolean;
+  importData: (jsonString: string) => Promise<boolean>;
 };
 
 const AppDataContext = createContext<AppDataContextValue | undefined>(undefined);
@@ -542,31 +542,110 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
 
   const exportData = useCallback((): string => {
     return JSON.stringify({
+      version: "3.4.0",
+      exportDate: new Date().toISOString(),
       subjects: dbSubjects.map(s => ({
-        id: s.id,
         subject_name: s.subject_name,
         subject_code: s.subject_code,
-        created_at: s.created_at,
       })),
-      assignments: dbAssignments.map(a => ({
-        id: a.id,
-        subject_id: a.subject_id,
-        title: a.title,
-        due_date: a.due_date,
-        is_completed: a.is_completed,
-        created_at: a.created_at,
-      })),
+      assignments: dbAssignments.map(a => {
+        const sub = dbSubjects.find(s => s.id === a.subject_id);
+        return {
+          title: a.title,
+          due_date: a.due_date,
+          is_completed: a.is_completed,
+          subject_code: sub?.subject_code || "UNKNOWN",
+        };
+      }),
     }, null, 2);
   }, [dbSubjects, dbAssignments]);
 
-  const importData = useCallback((jsonString: string): boolean => {
+  const importData = useCallback(async (jsonString: string): Promise<boolean> => {
+    if (!userId) return false;
+
     try {
-      JSON.parse(jsonString);
-      return false; // TODO: implement Supabase import
-    } catch {
+      const data = JSON.parse(jsonString);
+      if (!data.subjects || !Array.isArray(data.subjects)) return false;
+
+      setIsLoading(true);
+      setGlobalError(null);
+
+      // 1. Process Subjects
+      const subjectsToInsert = [];
+      const subjectMap = new Map(); // code -> id
+
+      // Check existing subjects
+      dbSubjects.forEach(s => subjectMap.set(s.subject_code.trim().toUpperCase(), s.id));
+
+      for (const s of data.subjects) {
+        const code = s.subject_code.trim().toUpperCase();
+        if (!subjectMap.has(code)) {
+          subjectsToInsert.push({
+            user_id: userId,
+            subject_name: s.subject_name.trim(),
+            subject_code: s.subject_code.trim(),
+          });
+        }
+      }
+
+      if (subjectsToInsert.length > 0) {
+        const { data: newSubjects, error: sErr } = await supabase.from("subjects").insert(subjectsToInsert).select();
+        if (sErr) throw sErr;
+        if (newSubjects) {
+          newSubjects.forEach(s => subjectMap.set(s.subject_code.trim().toUpperCase(), s.id));
+        }
+      }
+
+      // 2. Process Assignments
+      const assignmentsToInsert = [];
+      if (data.assignments && Array.isArray(data.assignments)) {
+        // Build existing assignment keys for deduplication
+        const existingKeys = new Set(dbAssignments.map(a =>
+          `${a.subject_id}-${a.title.toLowerCase().trim()}-${a.due_date || "nodate"}`
+        ));
+
+        for (const a of data.assignments) {
+          const subId = subjectMap.get(a.subject_code?.trim().toUpperCase());
+          if (!subId) continue;
+
+          const key = `${subId}-${a.title.toLowerCase().trim()}-${a.due_date || "nodate"}`;
+          if (!existingKeys.has(key)) {
+            assignmentsToInsert.push({
+              user_id: userId,
+              subject_id: subId,
+              title: a.title.trim(),
+              due_date: a.due_date || null,
+              is_completed: a.is_completed === true,
+            });
+          }
+        }
+
+        if (assignmentsToInsert.length > 0) {
+          const { error: aErr } = await supabase.from("assignments").insert(assignmentsToInsert);
+          if (aErr) throw aErr;
+        }
+      }
+
+      // 3. Refresh Data
+      const [subjectsRes, assignmentsRes] = await Promise.all([
+        supabase.from("subjects").select("*").eq("user_id", userId).order("created_at", { ascending: true }),
+        supabase.from("assignments").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+      ]);
+
+      if (subjectsRes.data) setDbSubjects(subjectsRes.data);
+      if (assignmentsRes.data) setDbAssignments(assignmentsRes.data);
+
+      flashSuccess("Data imported and synced successfully.");
+      return true;
+    } catch (err: unknown) {
+      console.error("Import error:", err);
+      const message = err instanceof Error ? err.message : "Failed to import data.";
+      setGlobalError(message);
       return false;
+    } finally {
+      setIsLoading(false);
     }
-  }, []);
+  }, [supabase, userId, dbSubjects, dbAssignments, flashSuccess]);
 
   // ── Context value ────────────────────────────────────────────────────
   const value: AppDataContextValue = {
@@ -610,7 +689,7 @@ export default function AppDataProvider({ children }: AppDataProviderProps) {
             type="button"
             onClick={clearError}
             className="shrink-0 rounded-lg border border-rose-300 px-3 py-1 text-lg font-medium text-rose-600 transition hover:bg-rose-100"
- >
+          >
             Dismiss
           </button>
         </div>
