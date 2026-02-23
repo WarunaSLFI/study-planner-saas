@@ -6,7 +6,6 @@ import { useAppData } from "@/app/app/providers/AppDataProvider";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { parseSubjectsFromText } from "@/lib/parseSubjects";
 import type { SubjectItem } from "@/app/app/providers/AppDataProvider";
-import { scanImageWithAI } from "@/app/actions/ocr";
 
 function highlightText(text: string, query: string): ReactNode {
   if (!query) return text;
@@ -168,13 +167,11 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
   const [pastedText, setPastedText] = useState("");
   const [parsedRows, setParsedRows] = useState<{ id: string; name: string; code: string; checked: boolean; isNew: boolean }[]>([]);
   const [view, setView] = useState<"paste" | "preview">("paste");
-  const [isScanning, setIsScanning] = useState(false);
 
   const handleClose = () => {
     setPastedText("");
     setParsedRows([]);
     setView("paste");
-    setIsScanning(false);
     onClose();
   };
 
@@ -210,64 +207,6 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
     });
   };
 
-  const scanImage = async (file: File) => {
-    setIsScanning(true);
-    try {
-      // Convert file to base64
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve) => {
-        reader.onload = () => {
-          const base64 = (reader.result as string).split(",")[1];
-          resolve(base64);
-        };
-      });
-      reader.readAsDataURL(file);
-      const base64Image = await base64Promise;
-
-      // Call AI OCR
-      const result = await scanImageWithAI(base64Image);
-
-      if (result.success && result.data && result.data.length > 0) {
-        setParsedRows(processRawRows(result.data));
-        setView("preview");
-        setPastedText(""); // Clear text if we got direct objects
-      } else if (!result.success) {
-        // Show the specific error from the server
-        const message = result.error || "";
-        if (message.includes("SERVER_ENV_MISSING")) {
-          alert("Configuration Error: The Gemini API Key is missing on the server. Please add GEMINI_API_KEY to your Vercel Environment Variables.");
-        } else if (message.includes("413") || message.includes("too large")) {
-          alert("Image too large: Please try a smaller screenshot or compress the image.");
-        } else {
-          alert("Gemini Processing Failed: " + (message || "Please check your Gemini API quota or try again."));
-        }
-      } else {
-        alert("AI could not find any subjects in this image. Try another one or paste text.");
-      }
-    } catch (err: any) {
-      console.error("Critical AI OCR failure:", err);
-      alert("A critical system error occurred. Please refresh the page and try again.");
-    } finally {
-      setIsScanning(false);
-    }
-  };
-
-  const handlePasteEvent = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.type.indexOf("image") !== -1) {
-        e.preventDefault();
-        const file = item.getAsFile();
-        if (file) {
-          scanImage(file);
-        }
-        break;
-      }
-    }
-  };
 
   const handleParse = () => {
     const rawRows = parseSubjectsFromText(pastedText);
@@ -300,30 +239,17 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
 
         {view === "paste" ? (
           <div className="flex-1 overflow-y-auto relative">
-            <p className="mb-2 text-slate-600">Copy and paste your subject list from your university website directly into the box below. You can also <strong>paste a screenshot/image</strong> and we will auto-extract the text!</p>
+            <p className="mb-2 text-slate-600">Copy and paste your subject list from your university website directly into the box below.</p>
             <textarea
               className="w-full h-64 rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 resize-none placeholder:text-slate-400"
-              placeholder="Paste your subject list or image here..."
+              placeholder="Paste your subject list here..."
               value={pastedText}
               onChange={(e) => setPastedText(e.target.value)}
-              onPaste={handlePasteEvent}
-              disabled={isScanning}
             />
-            {isScanning && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 mb-16 mt-9">
-                <div className="flex flex-col items-center">
-                  <svg className="animate-spin h-8 w-8 text-indigo-600 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <span className="text-lg font-medium text-slate-700">Scanning image with AI...</span>
-                </div>
-              </div>
-            )}
             <div className="mt-4 flex justify-end">
               <button
                 onClick={handleParse}
-                disabled={!pastedText.trim() || isScanning}
+                disabled={!pastedText.trim()}
                 className="rounded-xl bg-slate-900 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
               >
                 Parse
