@@ -121,7 +121,12 @@ export default function Header({ title }: HeaderProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <h1 className="text-2xl font-semibold text-slate-900">{resolvedTitle}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-semibold text-slate-900">{resolvedTitle}</h1>
+              <span className="text-sm font-medium rounded-full bg-slate-100 px-2 py-0.5 text-slate-600 border border-slate-200">
+                v1.0
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-4">
