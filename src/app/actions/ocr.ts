@@ -56,14 +56,16 @@ export async function scanImageWithAI(base64Image: string) {
         }
 
         // --- Post-Processing Deduplication ---
-        // Some AI responses might still sneak in duplicates. We consolidate them here.
-        const finalized: { name: string, code: string }[] = [];
-        const seenKeys = new Set<string>();
+        // Some AI responses might still sneak in duplicates. We use an aggressive normalization
+        // to consolidate "Course" vs "Implementation" rows.
+        const finalizedMap = new Map<string, { name: string, code: string }>();
 
-        // Heuristic: remove leading digit if it's followed by the rest of the code pattern
-        const getBaseCode = (c: string) => c.replace(/^[0-9]([A-Z0-9]{2,})/, "$1");
-        // Heuristic: lowercase and remove trailing numbers like " 1", " 2", " 3"
-        const normalizeName = (n: string) => n.toLowerCase().replace(/\s*[0-9]+$/, "").trim();
+        // Heuristic: remove all non-alphanumeric, then strip all leading digits
+        // This merges "5G..." and "15G..." into the same base code.
+        const normalizeCode = (c: string) => c.replace(/[^A-Z0-9]/gi, "").replace(/^[0-9]+/, "");
+
+        // Heuristic: remove numbers and special characters to handle "Suomen kieli 1" vs "Suomen kieli"
+        const normalizeName = (n: string) => n.toLowerCase().replace(/[^a-zåäö]/gi, "");
 
         for (const item of rawResults) {
             const name = (item.name || "").trim();
@@ -71,14 +73,23 @@ export async function scanImageWithAI(base64Image: string) {
             if (!name) continue;
 
             const baseName = normalizeName(name);
-            const baseCode = getBaseCode(code);
+            const baseCode = normalizeCode(code);
             const uniqueKey = `${baseName}|${baseCode}`;
 
-            if (!seenKeys.has(uniqueKey)) {
-                seenKeys.add(uniqueKey);
-                finalized.push({ name, code });
+            const existing = finalizedMap.get(uniqueKey);
+            if (!existing) {
+                finalizedMap.set(uniqueKey, { name, code });
+            } else {
+                // Resolution: Prefer the one with the shorter code and shorter name
+                // (Usually the "base" course row is cleaner than the implementation row)
+                const isCurrentCleaner = (code.length <= existing.code.length) && (name.length <= existing.name.length);
+                if (isCurrentCleaner) {
+                    finalizedMap.set(uniqueKey, { name, code });
+                }
             }
         }
+
+        const finalized = Array.from(finalizedMap.values());
 
         return { success: true, data: finalized };
     } catch (error: any) {
