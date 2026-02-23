@@ -47,7 +47,7 @@ export default function AssignmentsTable({ assignments, onEdit, onDelete, onTogg
   const { subjects } = useAppData();
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="overflow-x-auto">
         <table className="min-w-full text-left">
           <thead className="border-b border-slate-200">

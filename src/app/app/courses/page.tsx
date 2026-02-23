@@ -90,7 +90,7 @@ function SubjectModal({ isOpen, onClose, onAddSubject, onEditSubject, existingSu
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+      <div className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-700">
             {isEditing ? "Edit Subject" : "Add Subject"}
@@ -119,7 +119,7 @@ function SubjectModal({ isOpen, onClose, onAddSubject, onEditSubject, existingSu
               type="text"
               value={subjectName}
               onChange={(event) => setSubjectName(event.target.value)}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
             />
           </label>
           <label className="block">
@@ -131,7 +131,7 @@ function SubjectModal({ isOpen, onClose, onAddSubject, onEditSubject, existingSu
               type="text"
               value={subjectCode}
               onChange={(event) => setSubjectCode(event.target.value)}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
             />
           </label>
 
@@ -139,13 +139,13 @@ function SubjectModal({ isOpen, onClose, onAddSubject, onEditSubject, existingSu
             <button
               type="button"
               onClick={handleClose}
-              className="rounded-xl border border-slate-300 px-4 py-2 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
+              className="rounded-lg border border-slate-300 px-4 py-2 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-slate-600 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700"
+              className="rounded-lg bg-slate-600 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700"
             >
               {isEditing ? "Save Changes" : "Add Subject"}
             </button>
@@ -225,7 +225,7 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-4xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-4">
           <h3 className="text-lg font-semibold text-slate-700">Import Subjects</h3>
           <button
@@ -241,7 +241,7 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
           <div className="flex-1 overflow-y-auto relative">
             <p className="mb-2 text-slate-600">Copy and paste your subject list from your university website directly into the box below.</p>
             <textarea
-              className="w-full h-64 rounded-xl border border-slate-300 bg-white px-3 py-2 text-lg text-slate-700 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 resize-none placeholder:text-slate-400"
+              className="w-full h-64 rounded-lg border border-slate-300 bg-white px-3 py-2 text-lg text-slate-700 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 resize-none placeholder:text-slate-400"
               placeholder="Paste your subject list here..."
               value={pastedText}
               onChange={(e) => setPastedText(e.target.value)}
@@ -250,7 +250,7 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
               <button
                 onClick={handleParse}
                 disabled={!pastedText.trim()}
-                className="rounded-xl bg-slate-600 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
+                className="rounded-lg bg-slate-600 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
               >
                 Parse
               </button>
@@ -323,14 +323,14 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
             <div className="mt-4 flex justify-between shrink-0">
               <button
                 onClick={() => setView("paste")}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
+                className="rounded-lg border border-slate-300 px-4 py-2 text-lg font-medium text-slate-700 transition hover:bg-slate-50"
               >
                 Back to Paste
               </button>
               <button
                 onClick={handleImport}
                 disabled={parsedRows.length === 0 || !parsedRows.some(r => r.checked)}
-                className="rounded-xl bg-indigo-600 px-4 py-2 text-lg font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-lg font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
               >
                 Import Selected
               </button>
@@ -401,14 +401,14 @@ export default function SubjectsPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-semibold text-slate-900">Subjects</h2>
           <div className="flex gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => setIsImportModalOpen(true)}
-              className="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-2 text-lg font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-4 py-2 text-lg font-semibold text-slate-700 transition hover:bg-slate-50"
             >
               Import Subjects
             </button>
@@ -418,7 +418,7 @@ export default function SubjectsPage() {
                 setEditingSubject(null);
                 setIsAddModalOpen(true);
               }}
-              className="inline-flex items-center justify-center rounded-xl bg-slate-600 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700"
+              className="inline-flex items-center justify-center rounded-lg bg-slate-600 px-4 py-2 text-lg font-semibold text-white transition hover:bg-slate-700"
             >
               Add Subject
             </button>
@@ -435,7 +435,7 @@ export default function SubjectsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search subjects by name or code…  ( / )"
-              className="w-full rounded-xl border border-slate-300 bg-transparent px-3 py-2 text-lg text-slate-700 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 placeholder:text-slate-400"
+              className="w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-lg text-slate-700 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 placeholder:text-slate-400"
             />
           </label>
           <span className="text-lg text-slate-500 whitespace-nowrap">
