@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { navigationItems } from "@/components/Sidebar";
+import pkg from "../../package.json";
 
 type HeaderProps = {
   title?: string;
@@ -124,7 +125,7 @@ export default function Header({ title }: HeaderProps) {
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-semibold text-slate-900">{resolvedTitle}</h1>
               <span className="text-sm font-medium rounded-full bg-slate-100 px-2 py-0.5 text-slate-600 border border-slate-200">
-                v{process.env.NEXT_PUBLIC_APP_VERSION || "2.2.0"}
+                v{pkg.version}
               </span>
             </div>
           </div>
