@@ -1,51 +1,41 @@
 "use server";
 
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function scanImageWithAI(base64Image: string) {
-    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "") {
-        console.error("OCR Error: OPENAI_API_KEY is missing in server environment variables.");
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "") {
+        console.error("OCR Error: GEMINI_API_KEY is missing in server environment variables.");
         return {
             success: false,
-            error: "SERVER_ENV_MISSING: The OpenAI API Key is not configured on the deployment server. Please add OPENAI_API_KEY to your Vercel Environment Variables."
+            error: "SERVER_ENV_MISSING: The Gemini API Key is not configured on the deployment server. Please add GEMINI_API_KEY to your Vercel Environment Variables."
         };
     }
 
     try {
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                {
-                    role: "system",
-                    content: "You are an expert OCR assistant. Your goal is to extract study subjects from an image. Look for subject codes (e.g., 5G00DL96-3014) and their names. Ignore multiple duplicate rows representing 'implementations' if they refer to the same course. Return ONLY a raw JSON array of objects with 'name' and 'code' properties inside a 'subjects' key.",
-                },
-                {
-                    role: "user",
-                    content: [
-                        {
-                            type: "text",
-                            text: "Extract the subjects from this image as a JSON array of { name, code }.",
-                        },
-                        {
-                            type: "image_url",
-                            image_url: {
-                                url: `data:image/jpeg;base64,${base64Image}`,
-                            },
-                        },
-                    ],
-                },
-            ],
-            response_format: { type: "json_object" },
-        });
+        // Using gemini-1.5-flash as it is faster and cheaper for OCR tasks
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-        const content = response.choices[0].message.content;
-        if (!content) return { success: true, data: [] };
+        const prompt = "You are an expert OCR assistant. Your goal is to extract study subjects from an image. Look for subject codes (e.g., 5G00DL96-3014) and their names. Ignore multiple duplicate rows representing 'implementations' if they refer to the same course. Return ONLY a raw JSON array of objects with 'name' and 'code' properties inside a 'subjects' key. Do not include markdown formatting or backticks.";
 
-        const parsed = JSON.parse(content);
+        const result = await model.generateContent([
+            prompt,
+            {
+                inlineData: {
+                    data: base64Image,
+                    mimeType: "image/jpeg"
+                }
+            }
+        ]);
+
+        const response = await result.response;
+        const text = response.text();
+
+        // Clean up potential markdown formatting if Gemini adds it despite instructions
+        const cleanedText = text.replace(/```json/g, "").replace(/```/g, "").trim();
+
+        const parsed = JSON.parse(cleanedText);
         let results = [];
 
         if (Array.isArray(parsed)) {
@@ -58,10 +48,10 @@ export async function scanImageWithAI(base64Image: string) {
 
         return { success: true, data: results };
     } catch (error: any) {
-        console.error("OpenAI OCR Error:", error);
+        console.error("Gemini OCR Error:", error);
         return {
             success: false,
-            error: error.message || "An unexpected error occurred during AI processing."
+            error: error.message || "An unexpected error occurred during Gemini AI processing."
         };
     }
 }

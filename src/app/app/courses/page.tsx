@@ -235,11 +235,11 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
         // Show the specific error from the server
         const message = result.error || "";
         if (message.includes("SERVER_ENV_MISSING")) {
-          alert("Configuration Error: The OpenAI API Key is missing on the server. Please add OPENAI_API_KEY to your Vercel Environment Variables.");
+          alert("Configuration Error: The Gemini API Key is missing on the server. Please add GEMINI_API_KEY to your Vercel Environment Variables.");
         } else if (message.includes("413") || message.includes("too large")) {
           alert("Image too large: Please try a smaller screenshot or compress the image.");
         } else {
-          alert("AI Processing Failed: " + (message || "Please check your OpenAI balance or try again."));
+          alert("Gemini Processing Failed: " + (message || "Please check your Gemini API quota or try again."));
         }
       } else {
         alert("AI could not find any subjects in this image. Try another one or paste text.");
