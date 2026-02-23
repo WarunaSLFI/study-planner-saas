@@ -213,7 +213,7 @@ export default function SettingsPage() {
         <div className="mt-6 flex flex-wrap items-center gap-4">
           <button
             onClick={handleExport}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-lg font-medium text-white transition-colors hover:bg-slate-800"
+            className="rounded-lg bg-slate-100 border border-slate-300 px-4 py-2 text-lg font-medium text-slate-700 transition-colors hover:bg-slate-200"
           >
             Export Backup (.json)
           </button>
@@ -269,7 +269,7 @@ export default function SettingsPage() {
             <button
               onClick={handleImportText}
               disabled={!importJson.trim()}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-lg font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
+              className="rounded-lg bg-slate-100 border border-slate-300 px-4 py-2 text-lg font-medium text-slate-700 transition-colors hover:bg-slate-200 disabled:opacity-50"
             >
               Import
             </button>

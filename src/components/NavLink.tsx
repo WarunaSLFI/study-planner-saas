@@ -20,7 +20,7 @@ export default function NavLink({ href, label }: NavLinkProps) {
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`block rounded-lg px-3 py-2 font-medium transition-colors ${active ? "bg-slate-700 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100 hover:text-slate-700 "}`}
+      className={`block rounded-lg px-3 py-2 font-medium transition-colors ${active ? "bg-slate-100 text-slate-700 border border-slate-200/50" : "text-slate-600 hover:bg-slate-100 hover:text-slate-700 "}`}
     >
       {label}
     </Link>
