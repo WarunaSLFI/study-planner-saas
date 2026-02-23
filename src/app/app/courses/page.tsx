@@ -189,11 +189,15 @@ function ImportSubjectsModal({ isOpen, onClose, onImportBulk, existingSubjects }
 
   const handleParse = () => {
     const rawRows = parseSubjectsFromText(pastedText);
-    const existingCodes = new Set(existingSubjects.map(s => s.code.trim().toUpperCase()));
+    const existingCodes = new Set(existingSubjects.map(s => s.code.trim().toUpperCase()).filter(Boolean));
+    const existingNames = new Set(existingSubjects.map(s => s.name.trim().toLowerCase()));
 
     setParsedRows(
       rawRows.map((r, i) => {
-        const isNew = !existingCodes.has(r.code.trim().toUpperCase());
+        const isNew = r.code.trim()
+          ? !existingCodes.has(r.code.trim().toUpperCase())
+          : !existingNames.has(r.name.trim().toLowerCase());
+
         return {
           id: `parsed-${i}-${Date.now()}`,
           name: r.name,

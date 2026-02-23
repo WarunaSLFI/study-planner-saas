@@ -6,41 +6,43 @@ export type ParsedSubjectRow = {
 export function parseSubjectsFromText(input: string): ParsedSubjectRow[] {
     if (!input) return [];
 
-    const lines = input.split(/\r?\n/).map((line) => line.trim());
+    const lines = input.split(/\\r?\\n/).map((line) => line.trim());
     const parsedRows: ParsedSubjectRow[] = [];
 
-    // Covers standard university codes e.g. 5G00DL86, NN00FC85, 5G00GC28
-    const codeRegex = /\b(?:[A-Z0-9]{2}\d{2}[A-Z0-9]{2}\d{2}|\d[A-Z0-9]{7}|[A-Z0-9]{2,}\d{2,}[A-Z0-9]{2,})\b/;
-
     // Known noise lines to ignore
-    const noiseHeaders = new Set([
-        "study type",
-        "status",
-        "assessor",
-        "completed studies",
-        "no completed studies",
-        "kpl",
-    ]);
+    const noiseRegex = /^(course category|course implementations|course progress|course name|other|kpl|status|study type|assessor|completed studies|no completed studies)/i;
+
+    // Code must start the line, contain uppercase/numbers, have at least two digits, and optional -1234
+    // Usually length before hyphen is 5 to 12 chars
+    const codeRegex = /^([A-Z0-9]*\\d{2,}[A-Z0-9]*(?:-\\d{3,5})?)\\s+(.*)$/i;
 
     for (const line of lines) {
         if (!line) continue;
 
-        const lowerLine = line.toLowerCase();
-        if (noiseHeaders.has(lowerLine)) continue;
+        if (noiseRegex.test(line)) continue;
 
         const match = line.match(codeRegex);
         if (match) {
-            const code = match[0];
-            // The name is usually everything before the code
-            const namePart = line.substring(0, match.index).trim();
-
+            const code = match[1];
             // Collapse multiple spaces into one
-            const cleanName = namePart.replace(/\s+/g, " ");
+            const cleanName = match[2].replace(/\\s+/g, " ");
 
-            if (cleanName && code) {
+            // Ensure the code looks like a real code (at least 5 chars)
+            if (cleanName && code && code.length >= 5 && code.length <= 16) {
                 parsedRows.push({
                     name: cleanName,
-                    code,
+                    code: code.toUpperCase(),
+                });
+            }
+        } else {
+            // It might be a valid course without a code
+            // Only add it if it's not noise
+            const cleanName = line.replace(/\\s+/g, " ");
+            if (cleanName.length > 3) {
+                // If the app requires a code, we can just leave it empty
+                parsedRows.push({
+                    name: cleanName,
+                    code: "",
                 });
             }
         }
