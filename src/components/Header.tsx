@@ -33,6 +33,10 @@ export default function Header({ title }: HeaderProps) {
   const [editLast, setEditLast] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [editEmail, setEditEmail] = useState("");
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [emailPending, setEmailPending] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const resolvedTitle =
@@ -84,9 +88,33 @@ export default function Header({ title }: HeaderProps) {
   const openProfile = () => {
     setEditFirst(firstName);
     setEditLast(lastName);
+    setEditEmail(userEmail);
+    setEmailError("");
+    setEmailPending(false);
     setSaveSuccess(false);
     setProfileOpen(true);
     setDropdownOpen(false);
+  };
+
+  const handleChangeEmail = async () => {
+    const trimmed = editEmail.trim();
+    if (!trimmed) {
+      setEmailError("Email cannot be empty.");
+      return;
+    }
+    if (trimmed === userEmail) {
+      setEmailError("This is already your current email.");
+      return;
+    }
+    setEmailSaving(true);
+    setEmailError("");
+    const { error } = await supabase.auth.updateUser({ email: trimmed });
+    if (error) {
+      setEmailError(error.message);
+    } else {
+      setEmailPending(true);
+    }
+    setEmailSaving(false);
   };
 
   const handleSaveProfile = async () => {
@@ -224,12 +252,31 @@ export default function Header({ title }: HeaderProps) {
             <div className="mt-5 space-y-4">
               <label className="block">
                 <span className="block text-lg font-medium text-slate-700">Email</span>
-                <input
-                  type="email"
-                  value={userEmail}
-                  disabled
-                  className="mt-1.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-lg text-slate-500 outline-none cursor-not-allowed"
-                />
+                <div className="mt-1.5 flex gap-2">
+                  <input
+                    type="email"
+                    value={editEmail}
+                    onChange={(e) => { setEditEmail(e.target.value); setEmailError(""); setEmailPending(false); }}
+                    placeholder="Enter your email"
+                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2.5 text-lg text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleChangeEmail}
+                    disabled={emailSaving || emailPending}
+                    className="rounded-lg bg-slate-600 px-3 py-2.5 text-lg font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {emailSaving ? "Sending…" : "Update Email"}
+                  </button>
+                </div>
+                {emailError && (
+                  <p className="mt-1.5 text-lg text-red-600">{emailError}</p>
+                )}
+                {emailPending && (
+                  <p className="mt-1.5 text-lg text-green-600">
+                    Verification link sent to <strong>{editEmail.trim()}</strong>. Check your inbox to confirm the change.
+                  </p>
+                )}
               </label>
               <label className="block">
                 <span className="block text-lg font-medium text-slate-700">First Name</span>
